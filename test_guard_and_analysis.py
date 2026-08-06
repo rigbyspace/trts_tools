@@ -128,7 +128,7 @@ def test_characteristic_polynomial_is_exact_for_known_matrix():
     # [[2,0],[0,3]] has charpoly (x-2)(x-3) = x^2 - 5x + 6
     x = sp.Symbol('x')
     poly = characteristic_polynomial([[2, 0], [0, 3]])
-    assert sp.expand(poly - (x**2 - 5*x + 6)) == 0
+    assert sp.expand(poly - (x**2 - 5*x + 6)) == 0  # rs-guard: allow: symbolic polynomial equality check, not ERP arithmetic
 
 def test_characteristic_polynomial_coefficients_are_exact_integers():
     poly = characteristic_polynomial([[1, 1], [1, 0]])  # Fibonacci matrix

@@ -11,20 +11,9 @@ are easy to introduce accidentally:
     this is what caused the eigenvalue mistake earlier this session)
   - calling abs()
   - using /, //, %, or - as binary operators
-  - using ** with an exponent other than the literal INT 2 or 3
-    (square/cube are the framework's explicitly permitted temporary
-    shorthand; anything else is an unpermitted root/power operation).
-    The exponent must be an int literal specifically -- `** 2.0` is
-    rejected even though `2.0 == 2`, because the intent here is to ban
-    the float type from ever entering an expression, not just to check
-    the numeric value.
-  - unary negation (`-x`) applied to anything other than a literal
-    constant. A bare negative literal (`-7`) is legitimate RS state
-    (see primality.py: negative primes are real, signed values) and is
-    NOT flagged. `-x` where x is a variable or expression IS flagged,
-    because `a + (-b)` is arithmetically subtraction and would
-    otherwise bypass the BinOp Sub check above -- confirmed by testing
-    that the original guard let `x = -n` straight through.
+  - using ** with an exponent other than the literal 2 or 3 (square/cube
+    are the framework's explicitly permitted temporary shorthand;
+    anything else is an unpermitted root/power operation)
   - calling sympy.Rational, sympy.gcd, .simplify(), .cancel(), .together()
     (sympy.Rational auto-reduces exactly like Fraction does)
 
@@ -98,27 +87,26 @@ def check_source(source: str, filename: str = "<string>") -> list:
                     violations.append(Violation(lineno, f"use of banned operator {desc}"))
             if isinstance(node.op, ast.Pow):
                 exp = node.right
-                # type(exp.value) is int, not `exp.value in (2, 3)` alone --
-                # `2.0 == 2` in Python, so a value-only check let `** 2.0`
-                # (a float) straight through. Confirmed by testing.
-                ok = (
-                    isinstance(exp, ast.Constant)
-                    and type(exp.value) is int
-                    and exp.value in (2, 3)
-                )
+                # must be a literal int 2 or 3 -- checking type explicitly, not just
+                # value, since 2.0 == 2 in Python and a float exponent would
+                # otherwise silently pass (confirmed gap, patched here)
+                ok = (isinstance(exp, ast.Constant)
+                      and type(exp.value) is int
+                      and exp.value in (2, 3))
                 if not ok:
                     violations.append(Violation(lineno,
-                        "use of ** with exponent other than literal int 2 or 3"))
+                        "use of ** with exponent other than literal 2 or 3"))
 
-        elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
-            # A negative literal (-7) is legitimate signed RS state and is
-            # not flagged. Negating a variable or expression (-x, -b.n) is
-            # flagged: it's arithmetically subtraction (a + (-b)) and would
-            # otherwise bypass the BinOp Sub check above.
-            if not isinstance(node.operand, ast.Constant):
+        elif isinstance(node, ast.UnaryOp):
+            # confirmed gap: -n (negation of a variable/expression) bypassed
+            # the guard entirely, since BANNED_BINOPS only matches ast.BinOp,
+            # and a + (-b) is arithmetically subtraction. A negative LITERAL
+            # (-7) is legitimate RS state (signed primes, etc.) and must
+            # stay allowed -- the distinguishing factor is whether the
+            # operand is a bare Constant or something computed.
+            if isinstance(node.op, ast.USub) and not isinstance(node.operand, ast.Constant):
                 violations.append(Violation(lineno,
-                    "unary negation of a non-literal expression "
-                    "(equivalent to subtraction -- bypasses the '-' BinOp check)"))
+                    "unary negation of a non-literal (equivalent to subtraction)"))
 
     return violations
 

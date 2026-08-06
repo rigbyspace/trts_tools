@@ -68,7 +68,7 @@ SQRT2 = math.sqrt(2)
 ATTRACTOR_BY_PHASE = {
     1: 1 + SQRT2,     # R_{3k+1} -> 1+sqrt2 (proof + paper's own code; NOT Table 1's label)
     2: SQRT2,         # R_{3k+2} -> sqrt2
-    0: 1 / SQRT2,     # R_{3k}   -> 1/sqrt2
+    0: 1 / SQRT2,     # rs-guard: allow: external comparison target only, matches evaluate() # R_{3k}   -> 1/sqrt2
 }
 PHASE_LABEL = {1: "1+sqrt2", 2: "sqrt2", 0: "1/sqrt2"}
 
@@ -82,18 +82,27 @@ def propagate_pure(seed_upsilon: ERP, seed_beta: ERP, n_ticks: int):
     Builds the upsilon/beta history purely: ERP construction and oplus
     only. Returns a list of (tick, upsilon, beta, phase, is_revert) --
     the STATE at each tick. Nothing here is a float.
+
+    Uses TickCounter (tick_counter.py) rather than raw `n % 3` --
+    formalizes the same mod-free bookkeeping pattern the rest of this
+    toolkit uses, rather than reintroducing % locally.
     """
+    from rs_toolkit import TickCounter
     upsilon, beta = seed_upsilon, seed_beta
     history = [(1, upsilon, beta, 1, False)]  # tick 1 = the seed pair itself
 
+    counter = TickCounter(3)
+    counter.advance()  # move from representing tick 1 to tick 2
+
     for n in range(2, n_ticks + 1):
-        is_revert = (n % 3 == 0)
+        is_revert = counter.is_at_boundary()
         if is_revert:
             new_term = upsilon                 # discard the sum, carry n-2 forward
         else:
             new_term = oplus(beta, upsilon)     # exact fractional addition
         upsilon, beta = beta, new_term
-        history.append((n, upsilon, beta, n % 3, is_revert))
+        history.append((n, upsilon, beta, counter.position, is_revert))
+        counter.advance()
 
     return history
 
@@ -126,9 +135,9 @@ def show_evaluated_equivalence(history):
     print(header)
     print("-" * len(header))
     for n, upsilon, beta, phase, is_revert in history:
-        ratio = beta.evaluate() / upsilon.evaluate()   # sanctioned one-way exit only
+        ratio = beta.evaluate() / upsilon.evaluate()  # rs-guard: allow: sanctioned one-way exit only
         expected = ATTRACTOR_BY_PHASE[phase]
-        diff = abs(ratio - expected)
+        diff = abs(ratio - expected)  # rs-guard: allow: external diagnostic diff between two evaluated floats
         print(f"{n:>4}  {phase:>5}  {PHASE_LABEL[phase]:>10}  {ratio:>16.10f}  {diff:>12.2e}")
     print()
 

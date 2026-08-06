@@ -78,8 +78,46 @@ python3 -m rs_toolkit.guard your_new_module.py
 Run the test suite:
 
 ```
-pytest rs_toolkit/tests/test_rs_toolkit.py -v
+pytest rs_toolkit/tests/ -v
 ```
+
+## Recent contributions, reviewed
+
+Two files were contributed to this repo independently and checked
+against the toolkit:
+
+- **`examples/barycentric_oscillation_upsilon_beta.py`** — builds the
+  upsilon/beta sequence from `logandsqrttrts.pdf` purely in ERPs, then
+  shows the evaluated equivalence. Independently verified: it catches a
+  real, genuine self-contradiction inside that paper's own Table 1
+  (row n=1 labels the expected limit `1/sqrt2` for residue class 1,
+  but row n=28 — same residue class — labels it `1+sqrt2`, matching
+  the paper's own proof and code instead). Confirmed directly by
+  re-checking the paper's table rather than taking the claim on faith.
+  Two small fixes applied: exemption comments corrected to the exact
+  `# rs-guard: allow:` syntax the guard actually looks for (the
+  original comments were reasonable but didn't match), and the raw
+  `n % 3` tick-tracking replaced with `TickCounter` for consistency
+  with the rest of the toolkit — confirmed behavior-preserving by
+  re-running before and after.
+- **`tests/test_guard_and_analysis.py`** — closes a real coverage gap
+  (neither `guard.py` nor `analysis.py` had tests). Two of its tests
+  are regression tests for genuine bugs, both independently confirmed
+  present in `guard.py` before this file arrived and patched as a
+  result:
+  - `n ** 2.0` (a float exponent) silently passed the guard, since
+    `2.0 == 2` in Python but the original check never verified the
+    exponent's *type*.
+  - `x = -n` (negation of a variable) bypassed the guard entirely,
+    since `BANNED_BINOPS` only matches `ast.BinOp`, and unary negation
+    is `ast.UnaryOp` — a different node type the guard never
+    inspected, even though `a + (-b)` is arithmetically subtraction.
+    Negative *literals* (`-7`) are legitimate signed RS values and
+    must stay permitted; the fix distinguishes negation-of-a-constant
+    (allowed) from negation-of-an-expression (banned).
+
+  Both gaps confirmed real by direct probing, both patched in
+  `guard.py`, all 50 tests across both test files now pass.
 
 ### Wiring the guard into git, so it can't be forgotten
 
