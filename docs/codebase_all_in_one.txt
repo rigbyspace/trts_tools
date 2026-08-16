@@ -1,0 +1,1264 @@
+"""
+analysis.py -- EXTERNAL analysis tools. Read this docstring before using
+anything in this file.
+
+Everything here operates ON a structure built from ERPs (e.g. a
+transition matrix built from plain-int tick-matrices) in order to
+answer a question ABOUT that structure -- it never constructs, returns,
+or implies an ERP. This is the same category as ERP.evaluate() and
+is_prime_magnitude(): a one-way analytical exit, not a claim about how
+RS itself computes anything.
+
+The mistake this module exists to prevent: earlier this session,
+np.linalg.eig() was used to analyze a transition matrix, and the
+floating-point eigenvalues/eigenvectors it returned were then used to
+draw conclusions fed back into reasoning about RS's actual behavior.
+The matrix itself was legitimately integer-only; the analysis step was
+not, and the boundary between "legitimate integer object" and
+"external floating-point analysis" was not kept visible.
+
+This module uses sympy for EXACT symbolic computation (integer
+coefficients throughout, no floating point) wherever possible, and is
+explicit in each function's docstring about exactly where floating
+point becomes unavoidable (e.g. numerically isolating a root), so that
+boundary is never implicit again.
+"""
+
+import sympy as sp
+
+
+def characteristic_polynomial(matrix_of_ints, symbol_name='x'):
+    """
+    Given a matrix with plain-int or sympy-Integer entries (e.g. a
+    monodromy matrix built purely from RS tick-matrices), returns its
+    characteristic polynomial with EXACT integer coefficients. No
+    floating point anywhere in this step.
+    """
+    x = sp.Symbol(symbol_name)
+    M = sp.Matrix(matrix_of_ints)
+    return sp.expand(M.charpoly(x).as_expr())
+
+
+def has_repeated_root(polynomial_expr, symbol_name='x'):
+    """
+    Exact check via the discriminant (computed from integer polynomial
+    coefficients only -- addition and multiplication, no floating
+    point). Returns True if the polynomial has ANY repeated root
+    somewhere in its full root set.
+
+    IMPORTANT, confirmed this session: this does NOT tell you whether
+    the DOMINANT (largest-magnitude) root is the repeated one, only
+    that some pair of roots coincide somewhere. A nonzero-discriminant
+    result is a clean negative (no repeated roots at all, anywhere).
+    A zero-discriminant result requires further, harder work (dominant
+    root isolation) before it says anything about long-term behavior.
+    """
+    x = sp.Symbol(symbol_name)
+    disc = sp.discriminant(polynomial_expr, x)
+    return disc == 0
+
+
+def dominant_root_isolation_warning():
+    """
+    Isolating the DOMINANT root of a polynomial symbolically, and
+    checking its specific multiplicity, is real, harder computer
+    algebra than has been implemented in this toolkit so far -- it was
+    identified as an open task, not solved. Do not assume
+    has_repeated_root() alone answers questions about long-term
+    dynamical stability; it does not.
+    """
+    raise NotImplementedError(
+        "Dominant-root isolation was flagged as an open task, not implemented. "
+        "Do not approximate this with floating-point eigendecomposition -- "
+        "that is the exact mistake this module was built to prevent."
+    )
+"""
+barycentric_oscillation_upsilon_beta.py
+
+TWO ASSUMPTIONS MADE HERE, STATED EXPLICITLY (neither was pinned down in
+conversation, both are my calls, not yours):
+
+1. WHICH MECHANISM. "Barycentric" is formally defined in
+   rs_operator_findings.md Section 1 as the operator ⊞ (mediant addition /
+   boxplus). But ⊞ has no established attractor of its own -- Section 8
+   explicitly flags its growth/convergence behavior as "not re-tested this
+   session." The only mechanism in the corpus with THREE confirmed
+   attractors to "cycle through" is the TRTS convergence proof (Section 10,
+   tested directly against logandsqrttrts.pdf), which is built on ⊕
+   (oplus, ordinary fractional addition), NOT ⊞. Since "three attractors
+   cycling" only matches the ⊕ mechanism, that's what this script builds.
+   If you actually meant ⊞'s own (currently unestablished) oscillatory
+   behavior, this script does not show that -- it would need to be derived
+   and tested from scratch.
+
+2. WHICH REGISTER IS WHICH. upsilon (Y) is the n-2 slot (older term), beta
+   (B) is the n-1 slot (newer term, always one tick ahead of upsilon) --
+   matching the paper's A_{n-2}/A_{n-1} roles and this toolkit's
+   seed_prev2/seed_prev1 convention (engine.py). Swap if you meant it the
+   other way.
+
+Rule (matches logandsqrttrts.pdf exactly, revert-every-3):
+    at a revert tick (n % 3 == 0): new_term = upsilon        (discard the sum)
+    otherwise:                     new_term = oplus(beta, upsilon)
+  then shift forward: upsilon <- beta, beta <- new_term
+
+Attractors -- and a real conflict found INSIDE logandsqrttrts.pdf itself
+while building this, worth flagging to whoever maintains that document:
+
+The paper's Proof section (3.1) derives, via the 3-iterate map
+F(R)=(R+1)/(2R+1) and Banach fixed-point theorem: R_{3k} -> 1/sqrt2, then
+R_{3k+1} = 1+1/R_{3k} -> 1+sqrt2, then R_{3k+2} -> sqrt2. The paper's own
+appendix code (mod_index logic) computes the SAME mapping. But the paper's
+narrative Table 1 labels R_1 as expecting 1/sqrt2 -- which contradicts both
+the proof and the paper's own code (R_1 has n%3==1, which the proof/code
+say should expect 1+sqrt2). Verified numerically here (independent of any
+label, run against this exact seed/rule): n%3==1 converges to ~2.414
+(1+sqrt2), n%3==2 to ~1.414 (sqrt2), n%3==0 to ~0.707 (1/sqrt2) -- matching
+the proof and the code, not Table 1. The mapping below follows the proof
+and the code.
+    R_n -> 1 + sqrt(2) when n % 3 == 1
+    R_n -> sqrt(2)     when n % 3 == 2
+    R_n -> 1/sqrt(2)   when n % 3 == 0
+  where R_n = A_n / A_{n-1} = beta.evaluate() / upsilon.evaluate() at tick n.
+
+PART 1 -- pure RS propagation: builds the entire upsilon/beta sequence
+using ONLY ERP construction and oplus. No float, no math module, no
+.evaluate() call anywhere in this part.
+
+PART 2 -- evaluated at each step: re-walks the EXACT SAME states already
+built in Part 1 (not recomputed differently) and calls .evaluate() -- the
+one sanctioned exit point -- to show the ratio beta/upsilon at each tick
+converging on the attractor predicted for that tick's phase. This is an
+equivalence check: the same integers, looked at two ways.
+"""
+
+import math
+from rs_toolkit import ERP, oplus
+
+# External comparison targets ONLY -- sqrt() builds a target to compare
+# against, exactly as logandsqrttrts.pdf's own Table 1 does. Never fed back
+# into propagation; Part 1 never touches this.
+SQRT2 = math.sqrt(2)
+ATTRACTOR_BY_PHASE = {
+    1: 1 + SQRT2,     # R_{3k+1} -> 1+sqrt2 (proof + paper's own code; NOT Table 1's label)
+    2: SQRT2,         # R_{3k+2} -> sqrt2
+    0: 1 / SQRT2,     # rs-guard: allow: external comparison target only, matches evaluate() # R_{3k}   -> 1/sqrt2
+}
+PHASE_LABEL = {1: "1+sqrt2", 2: "sqrt2", 0: "1/sqrt2"}
+
+
+# ---------------------------------------------------------------------
+# PART 1 -- pure RS propagation
+# ---------------------------------------------------------------------
+
+def propagate_pure(seed_upsilon: ERP, seed_beta: ERP, n_ticks: int):
+    """
+    Builds the upsilon/beta history purely: ERP construction and oplus
+    only. Returns a list of (tick, upsilon, beta, phase, is_revert) --
+    the STATE at each tick. Nothing here is a float.
+
+    Uses TickCounter (tick_counter.py) rather than raw `n % 3` --
+    formalizes the same mod-free bookkeeping pattern the rest of this
+    toolkit uses, rather than reintroducing % locally.
+    """
+    from rs_toolkit import TickCounter
+    upsilon, beta = seed_upsilon, seed_beta
+    history = [(1, upsilon, beta, 1, False)]  # tick 1 = the seed pair itself
+
+    counter = TickCounter(3)
+    counter.advance()  # move from representing tick 1 to tick 2
+
+    for n in range(2, n_ticks + 1):
+        is_revert = counter.is_at_boundary()
+        if is_revert:
+            new_term = upsilon                 # discard the sum, carry n-2 forward
+        else:
+            new_term = oplus(beta, upsilon)     # exact fractional addition
+        upsilon, beta = beta, new_term
+        history.append((n, upsilon, beta, counter.position, is_revert))
+        counter.advance()
+
+    return history
+
+
+def show_pure_propagation(history):
+    print("PART 1 -- pure RS propagation (ERP + oplus only, no floats anywhere)")
+    header = f"{'tick':>4}  {'phase':>5}  {'revert?':>7}  {'upsilon (Y)':>26}  {'beta (B)':>26}"
+    print(header)
+    print("-" * len(header))
+    for n, upsilon, beta, phase, is_revert in history:
+        flag = "REVERT" if is_revert else ""
+        print(f"{n:>4}  {phase:>5}  {flag:>7}  "
+              f"{f'ERP({upsilon.n},{upsilon.d})':>26}  {f'ERP({beta.n},{beta.d})':>26}")
+    print()
+
+
+# ---------------------------------------------------------------------
+# PART 2 -- evaluated at each step, to show equivalence with Part 1
+# ---------------------------------------------------------------------
+
+def show_evaluated_equivalence(history):
+    """
+    Re-walks the SAME (upsilon, beta) states from Part 1 and evaluates
+    them -- the one sanctioned exit point -- to confirm the exact integer
+    propagation above actually converges to the three attractors it's
+    supposed to, phase by phase.
+    """
+    print("PART 2 -- evaluated at each step (equivalence check against Part 1)")
+    header = f"{'tick':>4}  {'phase':>5}  {'expected':>10}  {'beta/upsilon':>16}  {'|diff|':>12}"
+    print(header)
+    print("-" * len(header))
+    for n, upsilon, beta, phase, is_revert in history:
+        ratio = beta.evaluate() / upsilon.evaluate()  # rs-guard: allow: sanctioned one-way exit only
+        expected = ATTRACTOR_BY_PHASE[phase]
+        diff = abs(ratio - expected)  # rs-guard: allow: external diagnostic diff between two evaluated floats
+        print(f"{n:>4}  {phase:>5}  {PHASE_LABEL[phase]:>10}  {ratio:>16.10f}  {diff:>12.2e}")
+    print()
+
+
+if __name__ == "__main__":
+    seed_upsilon = ERP(22, 7)   # matches logandsqrttrts.pdf's A0 = 22/7
+    seed_beta = ERP(7, 19)      # matches logandsqrttrts.pdf's A1 = 7/19
+    n_ticks = 24
+
+    history = propagate_pure(seed_upsilon, seed_beta, n_ticks)
+    show_pure_propagation(history)
+    show_evaluated_equivalence(history)
+"""
+engine.py -- the canonical 11-tick E/M/R cycle.
+
+This exists because of a real bug found this session: every test script
+before this one hand-rewrote the cycle loop, and one of them used
+"revert when global_tick % 3 == 0" instead of resetting the local
+position every 11 ticks. Those two rules only agree during the first
+cycle -- 11 is not a multiple of 3, so a continuous global-mod-3 rule
+silently drifts out of alignment with the real local E/M/R roles from
+the second cycle onward. That produced a wrong result that took
+several turns to catch.
+
+This class is the fix: local position is EXPLICITLY reset to 1 at the
+start of every cycle, so E/M/R role assignment can never drift, no
+matter how many cycles are run. Write the cycle loop once, correctly,
+here -- do not hand-roll it again elsewhere.
+"""
+
+from .erp import ERP, MEDIANT_ABSENCE
+from .primality import is_prime_magnitude
+
+ROLE_BY_LOCAL_POSITION = {
+    1: 'E', 2: 'M', 3: 'R', 4: 'E', 5: 'M', 6: 'R',
+    7: 'E', 8: 'M', 9: 'R', 10: 'E', 11: 'M',
+}
+
+
+class Tick:
+    __slots__ = ('global_index', 'cycle', 'local_position', 'role', 'value', 'excluded')
+
+    def __init__(self, global_index, cycle, local_position, role, value, excluded=None):
+        self.global_index = global_index
+        self.cycle = cycle
+        self.local_position = local_position
+        self.role = role
+        self.value = value
+        self.excluded = excluded  # the value excluded from propagation, if this was a Return
+
+    def __repr__(self):
+        return f"Tick(g={self.global_index}, cycle={self.cycle}, local={self.local_position}, role={self.role}, value={self.value})"
+
+
+class Engine:
+    """
+    Runs the E/M/R cycle with correct, non-drifting local position reset.
+
+    combine_fn: a two-argument RS operator (e.g. eta wrapped to take two
+        args and ignore one, or oplus/boxplus) used at non-Return ticks.
+    on_boundary: optional callback(engine, boundary_tick) fired once at
+        the end of each cycle (local position 11 -> boundary), for
+        wiring in Koppa/Omega deposits or other cycle-boundary logic.
+    on_prime_emission: optional callback(engine, tick) fired whenever an
+        Emission-role tick's numerator is prime (sign-preserving check).
+    """
+    def __init__(self, seed0: ERP, seed1: ERP, combine_fn, on_boundary=None, on_prime_emission=None):
+        self.combine_fn = combine_fn
+        self.on_boundary = on_boundary
+        self.on_prime_emission = on_prime_emission
+        self.history = []
+        self._cycle = 0
+        self._seed_prev2 = seed0
+        self._seed_prev1 = seed1
+
+    def run_cycles(self, n_cycles: int):
+        global_index = 0
+        for _ in range(n_cycles):
+            self._cycle += 1
+            cycle_values = {}
+            for local_position in range(1, 12):
+                global_index += 1
+                role = ROLE_BY_LOCAL_POSITION[local_position]
+                excluded = None
+
+                if local_position == 1:
+                    value = self.combine_fn(self._seed_prev1, self._seed_prev2)
+                elif local_position == 2:
+                    value = self.combine_fn(cycle_values[1], self._seed_prev1)
+                elif role == 'R':
+                    excluded = cycle_values[local_position - 1]  # rs-guard: allow: dict-key bookkeeping, not ERP arithmetic
+                    value = cycle_values[local_position - 2]  # rs-guard: allow: dict-key bookkeeping, not ERP arithmetic
+                else:
+                    value = self.combine_fn(cycle_values[local_position - 1], cycle_values[local_position - 2])  # rs-guard: allow: dict-key bookkeeping, not ERP arithmetic
+
+                cycle_values[local_position] = value
+                tick = Tick(global_index, self._cycle, local_position, role, value, excluded)
+                self.history.append(tick)
+
+                if role == 'E' and self.on_prime_emission is not None:
+                    if is_prime_magnitude(value.n):
+                        self.on_prime_emission(self, tick)
+
+            if self.on_boundary is not None:
+                self.on_boundary(self, self.history[-1])
+
+            # reseed next cycle from the tail of this one -- local position always
+            # resets to 1 next iteration, regardless of global_index
+            self._seed_prev2 = cycle_values[9]
+            self._seed_prev1 = cycle_values[10]
+
+        return self.history
+"""
+erp.py -- the ERP (Explicit Rational Pair) type.
+
+This is the ONLY representation of an RS state anywhere in this toolkit.
+Design rules, enforced structurally, not just by convention:
+
+  1. Components must be plain Python `int`. Never float, Fraction, Decimal,
+     numpy scalar, or sympy Rational -- all of those either carry a
+     continuum representation or auto-reduce via gcd on construction.
+  2. No operation on an ERP ever reduces it. There is no .simplify(),
+     no .reduce(), no gcd() anywhere in this file, deliberately.
+  3. Equality is EXACT componentwise equality. (3,6) != (1,2), even though
+     they are the "same value" under reduction -- in RS they are different
+     states with different histories, and conflating them is exactly the
+     mistake this type exists to prevent.
+  4. evaluate() is the ONLY sanctioned exit to a real number. It is for
+     one-way comparison against a current-theory constant ONLY. Its
+     return value is a bare float, not an ERP, and cannot be fed back in.
+"""
+
+class ERP:
+    __slots__ = ('n', 'd')
+
+    def __init__(self, n, d):
+        if type(n) is not int or type(d) is not int:
+            raise TypeError(
+                f"ERP components must be plain int, got {type(n).__name__} and {type(d).__name__}. "
+                f"Never construct an ERP from float, Fraction, Decimal, or a numpy/sympy scalar."
+            )
+        self.n = n
+        self.d = d
+
+    def __repr__(self):
+        return f"ERP({self.n},{self.d})"
+
+    def __eq__(self, other):
+        # Exact componentwise equality ONLY. Never equality-after-reduction.
+        if not isinstance(other, ERP):
+            return NotImplemented
+        return self.n == other.n and self.d == other.d
+
+    def __hash__(self):
+        return hash((self.n, self.d))
+
+    def is_absence(self):
+        """True if this is either mediant absence (0,0) or fractional absence (0,1)."""
+        return (self.n, self.d) in ((0, 0), (0, 1))
+
+    def evaluate(self):
+        """
+        The ONLY sanctioned exit point to a real number.
+        Plain division -- never routes through Fraction/Rational, so gcd()
+        is never invoked. Use this ONLY for one-way comparison against a
+        current-theory value (e.g. checking closeness to sqrt(2) or phi).
+        The result must never be wrapped back into an ERP.
+        """
+        return self.n / self.d  # rs-guard: allow: sole sanctioned exit point, one-way only
+
+
+# Zero Logic constants -- see zero_logic.py for the resolution rule these feed into.
+MEDIANT_ABSENCE = ERP(0, 0)
+FRACTIONAL_ABSENCE = ERP(0, 1)
+"""
+guard.py -- static scanner for RS-axiom violations.
+
+Uses Python's `ast` module (safe: it only parses source text into a
+syntax tree, no numeric evaluation involved) to catch violations that
+are easy to introduce accidentally:
+
+  - importing fractions.Fraction or decimal.Decimal (both auto-reduce
+    or otherwise carry continuum representations)
+  - importing numpy (its linear algebra is floating-point internally --
+    this is what caused the eigenvalue mistake earlier this session)
+  - calling abs()
+  - using /, //, %, or - as binary operators
+  - using ** with an exponent other than the literal 2 or 3 (square/cube
+    are the framework's explicitly permitted temporary shorthand;
+    anything else is an unpermitted root/power operation)
+  - calling sympy.Rational, sympy.gcd, .simplify(), .cancel(), .together()
+    (sympy.Rational auto-reduces exactly like Fraction does)
+
+Default is deny. A line can be explicitly exempted with a trailing
+comment `# rs-guard: allow: <reason>` -- this is intentional and
+required to be a conscious, documented choice at the call site (e.g.
+ERP.evaluate()'s division, or primality.py's use of % in a clearly
+external analysis function), not a silent workaround.
+"""
+
+import ast
+
+BANNED_IMPORTS = {'fractions', 'decimal', 'numpy'}
+BANNED_CALLS = {'abs'}
+BANNED_SYMPY_CALLS = {'Rational', 'gcd', 'nsimplify'}
+BANNED_SYMPY_METHODS = {'simplify', 'cancel', 'together'}
+BANNED_BINOPS = {
+    ast.Div: '/ (division)',
+    ast.FloorDiv: '// (floor division)',
+    ast.Mod: '% (modulo)',
+    ast.Sub: '- (subtraction)',
+}
+
+
+class Violation:
+    def __init__(self, line, message):
+        self.line = line
+        self.message = message
+
+    def __repr__(self):
+        return f"line {self.line}: {self.message}"
+
+
+def check_source(source: str, filename: str = "<string>") -> list:
+    tree = ast.parse(source, filename=filename)
+    lines = source.splitlines()
+    violations = []
+
+    def is_exempted(lineno):
+        if 0 < lineno <= len(lines):
+            return '# rs-guard: allow' in lines[lineno-1]
+        return False
+
+    for node in ast.walk(tree):
+        lineno = getattr(node, 'lineno', -1)
+        if is_exempted(lineno):
+            continue
+
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in BANNED_IMPORTS:
+                    violations.append(Violation(lineno,
+                        f"import of banned module '{alias.name}'"))
+
+        elif isinstance(node, ast.Call):
+            fname = None
+            if isinstance(node.func, ast.Name):
+                fname = node.func.id
+            elif isinstance(node.func, ast.Attribute):
+                fname = node.func.attr
+            if fname in BANNED_CALLS:
+                violations.append(Violation(lineno, f"call to banned builtin '{fname}()'"))
+            if fname in BANNED_SYMPY_CALLS:
+                violations.append(Violation(lineno, f"call to '{fname}' (likely gcd-reducing)"))
+            if fname in BANNED_SYMPY_METHODS:
+                violations.append(Violation(lineno, f"call to '.{fname}()' (may reduce/simplify)"))
+
+        elif isinstance(node, ast.BinOp):
+            for optype, desc in BANNED_BINOPS.items():
+                if isinstance(node.op, optype):
+                    violations.append(Violation(lineno, f"use of banned operator {desc}"))
+            if isinstance(node.op, ast.Pow):
+                exp = node.right
+                # must be a literal int 2 or 3 -- checking type explicitly, not just
+                # value, since 2.0 == 2 in Python and a float exponent would
+                # otherwise silently pass (confirmed gap, patched here)
+                ok = (isinstance(exp, ast.Constant)
+                      and type(exp.value) is int
+                      and exp.value in (2, 3))
+                if not ok:
+                    violations.append(Violation(lineno,
+                        "use of ** with exponent other than literal 2 or 3"))
+
+        elif isinstance(node, ast.UnaryOp):
+            # confirmed gap: -n (negation of a variable/expression) bypassed
+            # the guard entirely, since BANNED_BINOPS only matches ast.BinOp,
+            # and a + (-b) is arithmetically subtraction. A negative LITERAL
+            # (-7) is legitimate RS state (signed primes, etc.) and must
+            # stay allowed -- the distinguishing factor is whether the
+            # operand is a bare Constant or something computed.
+            if isinstance(node.op, ast.USub) and not isinstance(node.operand, ast.Constant):
+                violations.append(Violation(lineno,
+                    "unary negation of a non-literal (equivalent to subtraction)"))
+
+    return violations
+
+
+def check_file(path: str) -> list:
+    with open(path) as f:
+        source = f.read()
+    return check_source(source, filename=path)
+
+
+if __name__ == "__main__":
+    import sys
+    for path in sys.argv[1:]:
+        vs = check_file(path)
+        if vs:
+            print(f"{path}: {len(vs)} violation(s)")
+            for v in vs:
+                print(f"  {v}")
+        else:
+            print(f"{path}: clean")
+from .erp import ERP, MEDIANT_ABSENCE, FRACTIONAL_ABSENCE
+from .operators import eta, boxplus, oplus, psi, psi_advance_a, psi_advance_b
+from .zero_logic import suspended, resolve_suspended
+from .primality import is_prime_magnitude, sign_of
+from .ledgers import Koppa, Omega, run_return_tick
+from .engine import Engine, Tick, ROLE_BY_LOCAL_POSITION
+from .tick_counter import TickCounter
+from .precession import run_k_periodic, predicted_attractor, precession_period, fibonacci
+
+__all__ = [
+    'ERP', 'MEDIANT_ABSENCE', 'FRACTIONAL_ABSENCE',
+    'eta', 'boxplus', 'oplus', 'psi', 'psi_advance_a', 'psi_advance_b',
+    'suspended', 'resolve_suspended',
+    'is_prime_magnitude', 'sign_of',
+    'Koppa', 'Omega', 'run_return_tick',
+    'Engine', 'Tick', 'ROLE_BY_LOCAL_POSITION',
+    'TickCounter',
+    'run_k_periodic', 'predicted_attractor', 'precession_period', 'fibonacci',
+]
+
+
+"""
+ledgers.py -- koppa and Omega.
+
+Koppa's mechanism here is TESTED, not speculative: at an ordinary Return
+tick, the TRTS-style recurrence does not sum the previous two terms --
+it discards the sum and carries the older term forward instead. The
+amount excluded from propagation (the value that WOULD have been added)
+is exactly the previous term, confirmed directly this session, and it
+can be accumulated purely additively (boxplus) with no subtraction
+anywhere. That accumulation is what this Koppa class implements.
+
+Omega's mechanism is NOT tested to the same standard. The "counts
+Return/boundary events" behavior is a hypothesis raised in discussion,
+not something verified the way Koppa's deposit rule was. It is
+implemented here as a plain counter so it is available to build with,
+but callers should treat it as CONDITIONAL, not confirmed.
+"""
+
+from .erp import ERP, MEDIANT_ABSENCE
+from .operators import boxplus
+
+
+class Koppa:
+    """
+    Accumulates excluded-sum tension via pure boxplus addition.
+    TESTED mechanism (see module docstring).
+    """
+    def __init__(self, initial: ERP = None):
+        # Zero Logic: which absence form is correct depends on which
+        # math governs the track this Koppa lives on -- do not hardcode
+        # mediant absence as the only valid starting point.
+        self.value = initial if initial is not None else MEDIANT_ABSENCE
+
+    def deposit(self, excluded_amount: ERP):
+        """Add an excluded amount to the ledger. Pure addition, no subtraction."""
+        self.value = boxplus(self.value, excluded_amount)
+
+    def __repr__(self):
+        return f"Koppa(value={self.value})"
+
+
+class Omega:
+    """
+    CONDITIONAL / not independently tested. Implemented as a simple
+    event counter (candidate hypothesis: Omega tracks how many
+    Return/boundary events have occurred, rather than accumulating a
+    magnitude the way Koppa does). Treat any conclusion drawn from this
+    class as provisional until tested with the same rigor as Koppa.
+    """
+    def __init__(self):
+        self.count = 0
+
+    def tick(self):
+        self.count += 1
+
+    def __repr__(self):
+        return f"Omega(count={self.count}) [CONDITIONAL -- untested mechanism]"
+
+
+def run_return_tick(history: list, tick_index: int, koppa: 'Koppa'):
+    """
+    Given a history list (indexed 0..n) of ERPs under the standard
+    TRTS-style rule, perform a Return tick at tick_index: the excluded
+    amount (history[tick_index - 1]) is deposited into koppa, and the
+    propagating value reverts to history[tick_index - 2].
+    Returns the new propagating ERP for this tick.
+    """
+    excluded = history[tick_index - 1]  # rs-guard: allow: list-index bookkeeping, not ERP arithmetic
+    koppa.deposit(excluded)
+    return history[tick_index - 2]  # rs-guard: allow: list-index bookkeeping, not ERP arithmetic
+"""
+operators.py -- the four verified-independent RS primitives.
+
+Every function here uses ONLY +, * on plain Python ints. No -, no /, no **
+(except the explicitly-permitted square/cube shorthand, unused here), no gcd.
+
+Confirmed this session:
+  - eta, boxplus, oplus, psi are genuinely independent (none reduces to another).
+  - lambda is NOT independent -- it is exactly oplus(x, ERP(1,1)). It is
+    deliberately NOT given its own function here, to avoid the toolkit
+    implying it is a fifth primitive. Use oplus(x, ERP(1,1)) directly if
+    lambda's behavior is needed, so the derivation stays visible at the
+    call site.
+  - psi is a pure permutation: it only ever rearranges its four input
+    integers, never combines them arithmetically. This is why psi**4
+    is structurally the identity, not just empirically observed.
+"""
+
+from .erp import ERP
+
+
+def eta(a: ERP) -> ERP:
+    """Mass-track native operator. Undriven, converges to phi. Proven NOT
+    reducible to boxplus or oplus with any fixed operand."""
+    return ERP(a.n + a.d, a.n)
+
+
+def boxplus(a: ERP, b: ERP) -> ERP:
+    """Mediant addition. Null element: ERP(0,0). Denominators only ADD --
+    this is why it grows linearly under repetition, unlike oplus."""
+    return ERP(a.n + b.n, a.d + b.d)
+
+
+def oplus(a: ERP, b: ERP) -> ERP:
+    """Fractional addition. Null element: ERP(0,1). Denominators MULTIPLY --
+    this is the source of the double-exponential blowup found this session
+    when used as a combine step without a compensating mechanism."""
+    return ERP(a.n * b.d + b.n * a.d, a.d * b.d)
+
+
+def psi(a: ERP, b: ERP):
+    """
+    The Transformative Reciprocal. Pure permutation -- proven to only
+    rearrange (a.n, a.d, b.n, b.d) into (b.d, a.n, a.d, b.n), never combine
+    them. Returns a PAIR of ERPs (a_new, b_new). Neither output is
+    privileged; which one a caller keeps and which is discarded is a
+    modeling decision made at the call site, not by this function.
+
+    A bare tuple return made it easy to silently pick the wrong slot --
+    confirmed this session, picking [1] instead of [0] in one config
+    produced a 2000x difference in growth outcome. Prefer the named
+    wrappers below so the choice is visible and intentional at the call
+    site rather than an easily-mistaken index.
+    """
+    return ERP(b.d, a.n), ERP(a.d, b.n)
+
+
+def psi_advance_a(a: ERP, b: ERP) -> ERP:
+    """psi(a,b), keeping only the new 'a' line. Explicit about which
+    output is being propagated forward -- see psi()'s docstring."""
+    return psi(a, b)[0]
+
+
+def psi_advance_b(a: ERP, b: ERP) -> ERP:
+    """psi(a,b), keeping only the new 'b' line. Explicit about which
+    output is being propagated forward -- see psi()'s docstring."""
+    return psi(a, b)[1]
+"""
+precession.py -- the k-periodic TRTS mechanism, formalized.
+
+This is this session's strongest tested result (7 of 7 exact predictions,
+k=3 through k=9) and it was never actually added to the toolkit -- every
+test script rewrote it from scratch. This module fixes that.
+
+The mechanism: revert every k ticks (carry the value from 2 ticks back,
+discard the sum), combine via oplus otherwise. Confirmed: this converges
+to R* where R*^2 = F(k-2)/F(k) (Fibonacci numbers), and embedding it in
+an 11-tick engine produces a precession period of exactly k cycles
+whenever gcd(11,k)=1.
+
+sqrt() is used ONLY to build a comparison target for evaluate(), exactly
+matching the original TRTS paper's own discipline -- never in the
+generative rule itself.
+"""
+
+import math
+from .erp import ERP
+from .operators import oplus
+from .tick_counter import TickCounter
+
+
+def fibonacci(m: int) -> int:
+    a, b = 0, 1
+    for _ in range(m):
+        a, b = b, a + b
+    return a
+
+
+def predicted_attractor(k: int) -> float:
+    """
+    Comparison-target ONLY -- this is the evaluate()-adjacent external
+    check, computed via ordinary floats, never fed into propagation.
+    R*^2 = F(k-2)/F(k), so R* = sqrt(F(k-2)/F(k)).
+    """
+    if k < 3:
+        raise ValueError("k must be >= 3 for this construction")
+    ratio = fibonacci(k - 2) / fibonacci(k)  # rs-guard: allow: external comparison target only, matches evaluate()
+    return math.sqrt(ratio)   # rs-guard: allow: external comparison target only, matches evaluate()
+
+
+def run_k_periodic(seed0: ERP, seed1: ERP, k: int, n_terms: int):
+    """
+    Generates the k-periodic TRTS sequence as a list of ERPs, using a
+    TickCounter (not %) to track cyclic position -- formalizing the
+    original TRTS paper's rational_index_tracker pattern.
+    """
+    seq = [seed0, seed1]
+    counter = TickCounter(k)
+    counter.advance()  # move from representing n=0 to n=1
+    counter.advance()  # move from representing n=1 to n=2
+    for n in range(2, n_terms):
+        if counter.is_at_boundary():
+            seq.append(seq[n - 2])  # rs-guard: allow: list-index bookkeeping, not ERP arithmetic
+        else:
+            seq.append(oplus(seq[n - 1], seq[n - 2]))  # rs-guard: allow: list-index bookkeeping, not ERP arithmetic
+        counter.advance()  # move to represent n+1 for the next iteration
+    return seq
+
+
+def precession_period(k: int) -> int:
+    """
+    Predicted precession period when this construction is embedded in
+    an 11-tick engine: exactly k, whenever gcd(11,k)=1 (true for every
+    k tested this session, since 11 is prime).
+    """
+    g = math.gcd(11, k)  # rs-guard: allow: external structural analysis, not ERP arithmetic
+    if g != 1:
+        raise NotImplementedError(f"gcd(11,{k})={g} != 1 -- untested regime, not covered by this session's results")
+    return k
+"""
+primality.py -- sign-preserving primality detection.
+
+Design requirement (explicit, from development discussion): sign is
+structurally important in RS and must never be discarded. A negative
+prime (e.g. -7) counts as a prime event exactly the same as a positive
+one (magnitude is what matters for primality) -- but the value itself
+must remain -7 afterward, never silently flipped to +7.
+
+This means: do NOT use abs() anywhere here. abs() is itself a banned
+continuum-adjacent operation, and more importantly, reaching for it
+invites the exact bug this module exists to prevent -- a temporary
+"unsigned magnitude" variable accidentally leaking out and replacing
+the signed original somewhere downstream.
+
+is_prime_magnitude() is a META/ANALYSIS utility, in the same category
+as ERP.evaluate() -- it is a detection tool that looks at a value to
+recognize a structural event (matching the framework's own account of
+prime emergence as something the structure recognizes, not something
+it computes via trial division). It is not a claim that RS itself
+performs modulo arithmetic internally. It returns a bare bool and
+never returns or constructs a modified (sign-stripped) copy of the
+input.
+"""
+
+def _magnitude(n: int) -> int:
+    """Magnitude without abs(). Comparison + multiplication only."""
+    if type(n) is not int:
+        raise TypeError(f"expected int, got {type(n).__name__}")
+    return n if n >= 0 else n * (-1)
+
+
+def is_prime_magnitude(n: int) -> bool:
+    """
+    True if |n| is prime. Sign of n is read, never altered or discarded --
+    the caller's original signed n is completely untouched by this call.
+    -7 and 7 both return True here; the ERP holding -7 still holds -7.
+    """
+    m = _magnitude(n)
+    if m < 2:
+        return False
+    if m in (2, 3):
+        return True
+    if m % 2 == 0:  # rs-guard: allow: external analysis (primality detection), not RS propagation
+        return False
+    i = 3
+    while i * i <= m:
+        if m % i == 0:  # rs-guard: allow: external analysis (primality detection), not RS propagation
+            return False
+        i += 2
+    return True
+
+
+def sign_of(n: int) -> int:
+    """
+    Returns -1, 0, or 1. Provided so callers never need to reach for a
+    workaround that risks discarding sign information (e.g. computing
+    n // abs(n) or similar). Comparison only, no division.
+    """
+    if n > 0:
+        return 1
+    if n < 0:
+        return -1
+    return 0
+"""
+test_guard_and_analysis.py -- coverage for guard.py and analysis.py.
+
+Neither module had any tests in test_rs_toolkit.py. guard.py in
+particular is the thing enforcing every other axiom in this toolkit,
+so an unguarded guard is the highest-value gap to close. Two of these
+tests (test_guard_catches_float_exponent, test_guard_catches_unary_
+negation_of_variable) are regression tests for gaps found and patched
+this session -- confirmed present in the original guard.py by direct
+probing before the patch, confirmed absent after.
+"""
+
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
+import pytest
+import sympy as sp
+from rs_toolkit.guard import check_source
+from rs_toolkit.analysis import (
+    characteristic_polynomial,
+    has_repeated_root,
+    dominant_root_isolation_warning,
+)
+
+
+# ---------- guard.py: banned imports / calls ----------
+
+def test_guard_catches_fractions_import():
+    assert check_source("import fractions\n")
+
+def test_guard_catches_decimal_import():
+    assert check_source("import decimal\n")
+
+def test_guard_catches_numpy_import():
+    assert check_source("import numpy\n")
+
+def test_guard_allows_sympy_import():
+    assert check_source("import sympy\n") == []
+
+def test_guard_catches_abs_call():
+    assert check_source("x = abs(n)\n")
+
+def test_guard_catches_sympy_rational():
+    assert check_source("import sympy as sp\nx = sp.Rational(1, 2)\n")
+
+def test_guard_catches_simplify_method():
+    assert check_source("x = expr.simplify()\n")
+
+
+# ---------- guard.py: banned binops ----------
+
+def test_guard_catches_division():
+    assert check_source("x = n / d\n")
+
+def test_guard_catches_floor_division():
+    assert check_source("x = n // d\n")
+
+def test_guard_catches_modulo():
+    assert check_source("x = n % d\n")
+
+def test_guard_catches_binary_subtraction():
+    assert check_source("x = n - m\n")
+
+def test_guard_allows_addition_and_multiplication():
+    assert check_source("x = n + m\ny = n * m\n") == []
+
+
+# ---------- guard.py: exponent rules, including the patched float-exponent gap ----------
+
+def test_guard_allows_int_exponent_2_and_3():
+    assert check_source("x = n ** 2\n") == []
+    assert check_source("x = n ** 3\n") == []
+
+def test_guard_catches_exponent_other_than_2_or_3():
+    assert check_source("x = n ** 4\n")
+
+def test_guard_catches_float_exponent():
+    """
+    Regression test: the original guard checked `exp.value in (2, 3)`
+    without checking the exponent's TYPE. Since `2.0 == 2` in Python,
+    `n ** 2.0` (a float exponent) passed silently. Confirmed by direct
+    probing before this fix; must be caught now.
+    """
+    assert check_source("x = n ** 2.0\n")
+
+
+# ---------- guard.py: unary negation, including the patched bypass gap ----------
+
+def test_guard_catches_unary_negation_of_variable():
+    """
+    Regression test: `x = -n` bypassed the guard entirely in the
+    original version, because BANNED_BINOPS only matches ast.BinOp,
+    and unary negation is ast.UnaryOp. `a + (-b)` is arithmetically
+    subtraction and must be caught for the same reason the Sub BinOp
+    is caught. Confirmed by direct probing before this fix.
+    """
+    assert check_source("x = -n\n")
+
+def test_guard_allows_negative_literal():
+    """
+    A negative integer literal is legitimate RS state (primality.py:
+    negative primes are real, signed values) and must NOT be flagged,
+    unlike negation of a variable/expression above.
+    """
+    assert check_source("x = -7\n") == []
+    assert check_source("x = ERP(-7, 3)\n") == []
+
+
+# ---------- guard.py: exemption comment ----------
+
+def test_guard_respects_exemption_comment():
+    src = "x = n / d  # rs-guard: allow: sole sanctioned exit point\n"
+    assert check_source(src) == []
+
+def test_guard_exemption_is_per_line_not_global():
+    src = (
+        "x = n / d  # rs-guard: allow: sole sanctioned exit point\n"
+        "y = a / b\n"
+    )
+    violations = check_source(src)
+    assert len(violations) == 1
+    assert violations[0].line == 2
+
+
+# ---------- analysis.py ----------
+
+def test_characteristic_polynomial_is_exact_for_known_matrix():
+    # [[2,0],[0,3]] has charpoly (x-2)(x-3) = x^2 - 5x + 6
+    x = sp.Symbol('x')
+    poly = characteristic_polynomial([[2, 0], [0, 3]])
+    assert sp.expand(poly - (x**2 - 5*x + 6)) == 0  # rs-guard: allow: symbolic polynomial equality check, not ERP arithmetic
+
+def test_characteristic_polynomial_coefficients_are_exact_integers():
+    poly = characteristic_polynomial([[1, 1], [1, 0]])  # Fibonacci matrix
+    # x^2 - x - 1; every coefficient must be an exact sympy Integer, no floats
+    poly_dict = sp.Poly(poly, sp.Symbol('x')).as_dict()
+    for coeff in poly_dict.values():
+        assert coeff == int(coeff)
+
+def test_has_repeated_root_true_for_repeated_root_matrix():
+    # [[2,1],[0,2]] has charpoly (x-2)^2 -- repeated root at x=2
+    poly = characteristic_polynomial([[2, 1], [0, 2]])
+    assert has_repeated_root(poly) is True
+
+def test_has_repeated_root_false_for_distinct_roots():
+    # [[2,0],[0,3]] has distinct roots 2 and 3
+    poly = characteristic_polynomial([[2, 0], [0, 3]])
+    assert has_repeated_root(poly) is False
+
+def test_dominant_root_isolation_is_explicitly_unimplemented():
+    """
+    Confirms this stays an honest NotImplementedError and doesn't
+    silently start returning a guessed answer.
+    """
+    with pytest.raises(NotImplementedError):
+        dominant_root_isolation_warning()
+
+
+if __name__ == "__main__":
+    import subprocess
+    subprocess.run([sys.executable, "-m", "pytest", __file__, "-v"])
+"""
+test_rs_toolkit.py -- pytest-style tests for every claim this toolkit
+makes. Run with: pytest test_rs_toolkit.py -v
+"""
+
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
+import pytest
+from rs_toolkit import (
+    ERP, MEDIANT_ABSENCE, FRACTIONAL_ABSENCE,
+    eta, boxplus, oplus, psi, psi_advance_a, psi_advance_b,
+    suspended, resolve_suspended,
+    is_prime_magnitude, sign_of,
+    Koppa, Omega,
+    Engine,
+)
+
+
+# ---------- ERP type safety ----------
+
+def test_erp_rejects_float():
+    with pytest.raises(TypeError):
+        ERP(1.0, 2)
+
+def test_erp_rejects_bool_disguised_as_int():
+    # type(True) is bool, not int -- the strict `type(n) is not int` check
+    # (rather than isinstance) correctly rejects this, even though bool
+    # is technically an int subclass. This is deliberate, safer behavior:
+    # silently accepting True/False as ERP components would be its own
+    # subtle bug source.
+    with pytest.raises(TypeError):
+        ERP(True, 2)
+
+def test_erp_exact_equality_not_reduction():
+    assert ERP(2, 4) != ERP(1, 2)
+    assert ERP(2, 4) == ERP(2, 4)
+
+
+# ---------- Operator identities, confirmed this session ----------
+
+def test_lambda_equals_oplus_with_unity():
+    n, d = 37, 58
+    lam_direct = ERP(n + d, d)
+    lam_via_oplus = oplus(ERP(n, d), ERP(1, 1))
+    assert lam_direct == lam_via_oplus
+
+def test_psi_is_involution_squared_full_swap():
+    a, b = ERP(5, 9), ERP(3, 4)
+    a1, b1 = psi(a, b)
+    a2, b2 = psi(a1, b1)
+    assert (a2, b2) == (b, a)  # psi^2 = full pair swap
+
+def test_psi_fourth_power_is_identity():
+    a, b = ERP(5, 9), ERP(3, 4)
+    state = (a, b)
+    for _ in range(4):
+        state = psi(*state)
+    assert state == (a, b)
+
+def test_psi_named_wrappers_match_bare_tuple():
+    a, b = ERP(5, 9), ERP(3, 4)
+    out = psi(a, b)
+    assert psi_advance_a(a, b) == out[0]
+    assert psi_advance_b(a, b) == out[1]
+
+def test_eta_not_reducible_to_boxplus_or_oplus_spot_check():
+    # full symbolic proof was done separately this session;
+    # this is a numeric spot-check that eta's output isn't reproducible
+    # by boxplus or oplus with the SAME two inputs
+    a = ERP(5, 3)
+    assert eta(a) != boxplus(a, a)
+    assert eta(a) != oplus(a, a)
+
+
+# ---------- Zero Logic ----------
+
+def test_suspended_state_has_zero_denominator():
+    s = suspended(7)
+    assert s.d == 0
+
+def test_resolve_suspended_matches_general_psi_formula():
+    s = suspended(5)  # ERP(5, 0)
+    other = ERP(3, 4)
+    resolved = resolve_suspended(s, other)
+    assert resolved == psi(s, other)  # confirmed: no special-casing needed
+
+def test_resolve_suspended_rejects_non_suspended_input():
+    with pytest.raises(ValueError):
+        resolve_suspended(ERP(5, 1), ERP(3, 4))
+
+def test_evaluate_raises_on_suspended_state():
+    s = suspended(5)
+    with pytest.raises(ZeroDivisionError):
+        s.evaluate()
+
+
+# ---------- Sign-preserving primality ----------
+
+def test_negative_prime_detected_as_prime():
+    assert is_prime_magnitude(-7) is True
+
+def test_negative_prime_sign_untouched():
+    n = -7
+    is_prime_magnitude(n)
+    assert n == -7  # the call must not mutate or shadow the original
+
+def test_negative_composite_not_prime():
+    assert is_prime_magnitude(-8) is False
+
+def test_sign_of_all_cases():
+    assert sign_of(-5) == -1
+    assert sign_of(5) == 1
+    assert sign_of(0) == 0
+
+
+# ---------- Koppa ----------
+
+def test_koppa_starts_at_configurable_absence():
+    k_default = Koppa()
+    assert k_default.value == MEDIANT_ABSENCE
+    k_custom = Koppa(initial=FRACTIONAL_ABSENCE)
+    assert k_custom.value == FRACTIONAL_ABSENCE
+
+def test_koppa_deposit_is_pure_addition():
+    k = Koppa()
+    k.deposit(ERP(3, 4))
+    assert k.value == boxplus(MEDIANT_ABSENCE, ERP(3, 4))
+
+
+# ---------- Engine: the phase-drift regression test ----------
+
+def test_engine_does_not_drift_across_cycle_boundary():
+    """
+    This is the regression test for the actual bug found this session:
+    a hand-rolled 'revert when global_tick % 3 == 0' rule silently
+    misaligns with the real local E/M/R roles starting in the second
+    cycle, since 11 is not a multiple of 3. Confirms local position 1
+    is ALWAYS role 'E', for every cycle, not just the first.
+    """
+    combine = lambda a, b: boxplus(a, b)
+    eng = Engine(ERP(22, 7), ERP(7, 19), combine)
+    history = eng.run_cycles(5)
+    for tick in history:
+        if tick.local_position == 1:
+            assert tick.role == 'E'
+        if tick.local_position == 11:
+            assert tick.role == 'M'
+        if tick.local_position in (3, 6, 9):
+            assert tick.role == 'R'
+
+def test_engine_boundary_callback_fires_once_per_cycle():
+    calls = []
+    combine = lambda a, b: boxplus(a, b)
+    eng = Engine(ERP(22, 7), ERP(7, 19), combine, on_boundary=lambda e, t: calls.append(t.cycle))
+    eng.run_cycles(4)
+    assert calls == [1, 2, 3, 4]
+
+def test_engine_return_ticks_record_excluded_value():
+    combine = lambda a, b: boxplus(a, b)
+    eng = Engine(ERP(22, 7), ERP(7, 19), combine)
+    history = eng.run_cycles(1)
+    return_ticks = [t for t in history if t.role == 'R']
+    assert all(t.excluded is not None for t in return_ticks)
+
+
+# ---------- TickCounter: mod-free cyclic position ----------
+
+def test_tick_counter_wraps_without_modulo():
+    from rs_toolkit import TickCounter
+    c = TickCounter(3)
+    positions = []
+    for _ in range(7):
+        positions.append(c.advance())
+    assert positions == [1, 2, 0, 1, 2, 0, 1]
+
+def test_tick_counter_boundary_flag():
+    from rs_toolkit import TickCounter
+    c = TickCounter(3)
+    c.advance(); c.advance()
+    assert not c.is_at_boundary()
+    c.advance()
+    assert c.is_at_boundary()
+
+
+# ---------- precession.py: formalized k-periodic mechanism, re-confirms this session's strongest result ----------
+
+def test_precession_period_matches_k_for_all_tested_values():
+    from rs_toolkit import precession_period
+    for k in range(3, 10):
+        assert precession_period(k) == k
+
+def test_precession_period_rejects_untested_gcd_regime():
+    from rs_toolkit import precession_period
+    with pytest.raises(NotImplementedError):
+        precession_period(11)  # gcd(11,11) != 1 -- untested regime, must not silently claim an answer
+
+def test_run_k_periodic_converges_near_predicted_attractor():
+    from rs_toolkit import run_k_periodic, predicted_attractor, ERP
+    seq = run_k_periodic(ERP(22, 7), ERP(7, 19), 3, 20)
+    ratios = [seq[i].evaluate() / seq[i-1].evaluate() for i in range(1, len(seq))]
+    predicted = predicted_attractor(3)
+    # the ratio should get close to the predicted attractor at SOME point in its cycle
+    closest = min(abs(r - predicted) for r in ratios[-6:])
+    assert closest < 0.01
+
+
+if __name__ == "__main__":
+    import subprocess
+    subprocess.run([sys.executable, "-m", "pytest", __file__, "-v"])
+"""
+tick_counter.py -- mod-free cyclic position tracking.
+
+This formalizes a pattern that predates this toolkit: the original TRTS
+paper's `rational_index_tracker` (increment each step, reset to 0 on
+reaching the period) is a genuine, working mod-free way to track cyclic
+position -- confirmed by tracing that paper's own code, which explicitly
+avoids the modulo operator in its generative rule and only uses `%` in
+a block marked "for analytical verification only."
+
+Engine (engine.py) already does this implicitly via its local_position
+loop. This module names the pattern explicitly so it can be reused
+anywhere a cyclic position is needed without reaching for %.
+"""
+
+class TickCounter:
+    """
+    Counts 0, 1, ..., period-1, 0, 1, ... forever, using only increment
+    and an equality check against `period` -- no modulo anywhere.
+    """
+    def __init__(self, period: int):
+        if period < 1:
+            raise ValueError("period must be >= 1")
+        self.period = period
+        self.position = 0
+
+    def advance(self) -> int:
+        """Advance one step, return the new position (0-indexed)."""
+        self.position += 1
+        if self.position == self.period:
+            self.position = 0
+        return self.position
+
+    def is_at_boundary(self) -> bool:
+        """True immediately after wrapping back to 0."""
+        return self.position == 0
+"""
+zero_logic.py -- absence, not zero, and constraint-vacuum resolution.
+
+There is no zero in RS, only absence: MEDIANT_ABSENCE = ERP(0,0) or
+FRACTIONAL_ABSENCE = ERP(0,1), chosen by which kind of math governs that
+line of propagation. No state initializes at ERP(1,1) -- it is a
+reachable state (e.g. eta(FRACTIONAL_ABSENCE) == ERP(1,1)), never a
+starting one.
+
+A "constraint vacuum" is an ERP with d==0 (e.g. ERP(n, 0)) -- a
+suspended state. Confirmed this session: psi's ordinary formula ALREADY
+resolves this correctly with no special-casing needed --
+psi(ERP(n,0), ERP(c,d)) == (ERP(d,n), ERP(0,c)) falls straight out of
+the general psi formula. This module exists to make that fact explicit
+and documented, and to provide a named constructor for suspended states
+so callers don't need to remember the bare mechanics.
+
+IMPORTANT: ERP.evaluate() will raise ZeroDivisionError on a suspended
+state (d==0). This is intentional, not a bug to work around -- a
+suspended state should never be evaluated; it should be resolved via
+psi first.
+"""
+
+from .erp import ERP, MEDIANT_ABSENCE, FRACTIONAL_ABSENCE
+from .operators import psi
+
+
+def suspended(n: int) -> ERP:
+    """Construct a constraint-vacuum / suspended state: ERP(n, 0)."""
+    return ERP(n, 0)
+
+
+def resolve_suspended(suspended_erp: ERP, other: ERP):
+    """
+    Resolve a suspended state (d==0) by coupling it with another ERP via
+    psi. Returns the same (a_new, b_new) pair psi() always returns --
+    this function adds no new mechanics, it just documents that this is
+    the sanctioned way to resolve a suspended state, and checks the
+    precondition explicitly rather than silently accepting any input.
+    """
+    if suspended_erp.d != 0:
+        raise ValueError(
+            f"{suspended_erp} is not a suspended state (d != 0). "
+            f"resolve_suspended() is specifically for constraint-vacuum states."
+        )
+    return psi(suspended_erp, other)

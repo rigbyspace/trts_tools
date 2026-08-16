@@ -1,0 +1,1546 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[top=.8in, bottom=.8in, left=0.5in, right=0.5in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\tcbuselibrary{breakable,skins}
+\usepackage{enumitem}
+\usepackage[T1]{fontenc}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{courier}
+\usepackage{mathrsfs}
+
+\definecolor{RSblue}{RGB}{25,60,120}
+\definecolor{RSgreen}{RGB}{20,110,60}
+\definecolor{RSamber}{RGB}{180,110,0}
+\definecolor{RSgray}{RGB}{90,90,90}
+
+\newtcolorbox{rsbox}{
+  enhanced, breakable,
+  colback=RSblue!4, colframe=RSblue!60,
+  title={\textbf{RS Ontological Statement}},
+  fonttitle=\small\bfseries\color{white},
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={colback=RSblue},
+  left=4pt, right=4pt, top=6pt, bottom=4pt}
+
+\newtcolorbox{verifybox}{
+  enhanced, breakable,
+  colback=RSgreen!4, colframe=RSgreen!50,
+  title={\textbf{External Verification (Continuous Lens)}},
+  fonttitle=\small\bfseries\color{white},
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={colback=RSgreen!70!black},
+  left=4pt, right=4pt, top=6pt, bottom=4pt}
+
+\newtcolorbox{observebox}{
+  enhanced, breakable,
+  colback=RSamber!5, colframe=RSamber!60,
+  title={\textbf{Structural Observation}},
+  fonttitle=\small\bfseries\color{white},
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={colback=RSamber!80!black},
+  left=4pt, right=4pt, top=6pt, bottom=4pt}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{axiom}{Axiom}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+%% ---------------------------------------------------------------
+%%  BASE ONTOLOGY MACROS
+%% ---------------------------------------------------------------
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\SL}{S_{\mathrm{L}}}
+\newcommand{\SLe}{S_{\mathrm{L}}^{\mathrm{ext}}}
+\newcommand{\SPs}{S_{\mathrm{P}}^{*}}
+\newcommand{\IP}{I_{\mathrm{P}}}
+\newcommand{\lop}{\lambda}
+\newcommand{\aop}{\eta}
+\newcommand{\bplus}{\boxplus}
+\newcommand{\med}{\oplus}
+\renewcommand{\succ}{\operatorname{succ}}
+\newcommand{\rank}{\rho}
+\newcommand{\Dcross}{\Delta_{\mathrm{cross}}}
+\newcommand{\koppa}{\mathbin{\text{\rm\k{o}}}}
+\newcommand{\Tcyc}{T_{11}}
+\newcommand{\Tbary}{T_{\mathrm{bary}}}
+\newcommand{\Tcharge}{\Gamma}
+\newcommand{\Dg}{D_{\mathrm{gauge}}}
+\newcommand{\Sint}{S_{\mathrm{int}}}
+\newcommand{\Sigimb}{\Sigma_{\mathrm{imb}}}
+\newcommand{\VS}{\mathcal{V}_S}
+\newcommand{\PG}{\mathrm{PG}}
+\newcommand{\Gmg}{G_{\mathrm{mg}}}
+\newcommand{\Ksat}{K_{\mathrm{sat}}}
+\newcommand{\dslip}{\delta_{\mathrm{slip}}}
+\newcommand{\Tvac}{T_{\mathrm{vac}}}
+\newcommand{\tauX}{\tau_{10}}
+\newcommand{\Pithree}{\Pi_3}
+\newcommand{\nG}{n_G}
+\newcommand{\aSC}{\alpha^{-1}_{\mathrm{int}}}
+\newcommand{\piRS}{\pi_{\mathrm{RS}}}
+\newcommand{\pa}{\mathfrak{p}_\alpha}
+\newcommand{\qa}{\mathfrak{q}_\alpha}
+\newcommand{\Da}{\mathcal{D}_\alpha}
+\newcommand{\qosc}{\mathfrak{q}_{\mathrm{osc}}}
+\newcommand{\RD}{R_D}
+\newcommand{\LucN}[1]{L(#1)}
+\newcommand{\FibN}[1]{F(#1)}
+
+%% ---------------------------------------------------------------
+%%  SHELL DYNAMICS SEMANTIC MACROS
+%% ---------------------------------------------------------------
+%% Kinematics & Expansion
+\newcommand{\KinAmp}{\xi}
+\newcommand{\AmpBound}{\upsilon}
+\newcommand{\ExcIndex}{\iota}
+\newcommand{\SpatDisp}{\varsigma}
+
+%% Dynamics & Inertia
+\newcommand{\RestInertia}{\varkappa}
+\newcommand{\TotInertia}{\chi}
+\newcommand{\KinExcess}{\varepsilon}
+\newcommand{\AccAction}{\zeta}
+\newcommand{\KinSource}{\Psi}
+
+%% Thermodynamics & Evolution
+\newcommand{\ResEns}{\varphi}
+\newcommand{\ResEnsAlt}{\vartheta}
+\newcommand{\EvolTraj}{\Upsilon}
+\newcommand{\RelaxNodes}{\beta}
+\newcommand{\GroundEq}{{\omega_{\ast}}}
+\newcommand{\CoupledState}{\Phi^{\mathrm{cpl}}}
+\newcommand{\StaticState}{\Phi^{\mathrm{st}}}
+\newcommand{\GroundProj}{\mathscr{R}}
+\newcommand{\InertialSpec}{\mathcal{V}}
+
+\lstset{
+  basicstyle=\footnotesize\ttfamily,
+  breaklines=true, frame=single,
+  language=Python, showstringspaces=false,
+  numbers=left, numberstyle=\tiny,
+  commentstyle=\color{RSgray},
+  keywordstyle=\color{RSblue!70!black}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{RSgray}{RigbySpace Discrete Dynamics}}
+\fancyhead[R]{\small\textcolor{RSgray}{Transformative Reciprocal Triadic Structure - Page \thepage}}
+\fancyfoot[L]{\small\textcolor{RSgray}{D. Veneziano}}
+\fancyfoot[R]{\small\textcolor{RSgray}{Discrete Unification Framework}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\titleformat{\section}
+  {\large\bfseries\color{RSblue}}{\thesection}{1em}{}[\titlerule]
+\titleformat{\subsection}
+  {\normalsize\bfseries\color{RSblue}}{\thesubsection}{1em}{}
+
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+\onehalfspacing
+
+
+\begin{document}
+
+
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+{\Huge\bfseries\color{RSblue}RigbySpace Discrete Dynamics\par}
+\vspace{0.5cm}
+{\LARGE RigbySpace Shell - Ensemble Transfer Chain\par}
+\vspace{0.5cm}
+{\large ---\par}
+\vspace{2cm}
+{\large D.\ Veneziano\par}
+\vspace{0.3cm}
+{\normalsize RigbySpace Discrete Dynamics\par}
+\vspace{0.3cm}
+\end{titlepage}
+
+\newpage
+
+\section*{Introduction}
+
+This document records the shell-ensemble transfer chain inside RigbySpace using only RS-native primitives, operators, axioms, and timing structure. The objects used throughout are unreduced ERP states, unreduced elliptic triples, structural tension, vacuum-aligned packets of length \(11\), barycentric shells of length \(33\), and the rest inertia, total inertial load, kinetic excess, and kinematic amplitude ledgers induced on closed shell cycles.
+
+The purpose of the document is to assemble, in a single formal sequence, the exact shell-level transfer law
+\[
+\TotInertia_M^{\mathrm{cyc}}
+=
+\RestInertia_M^{\mathrm{cyc}}
++
+\AccAction_M^{\mathrm{exc}}(H),
+\]
+the corresponding coupled/static shell decomposition, the canonical reduction law on admissible support-modulus resonance ensembles, and the ground state equilibrium obtained under rest-inertia-stable admissible ensemble expansion.
+
+No reduced-state quotient, external geometric identification, or non-RS interpretive layer is used. All statements are given as discrete structural definitions, lemmas, theorems, and consequences on the fixed unreduced resonance ensemble.
+
+\section*{I. ERP, Triadic Propagation, and Timing}
+
+\begin{enumerate}
+\item \textbf{ERP state}
+\[
+\mathcal S_L=\{(n,d)\in \mathbb Z^2:d\neq 0\}.
+\]
+ERPs are never reduced. Structural equality is componentwise equality. Observational equivalence is
+\[
+(n_1,d_1)\sim(n_2,d_2)\iff n_1d_2=n_2d_1.
+\]
+
+\item \textbf{Cross-determinant}
+For \(A=(p_a,q_a)\), \(B=(p_b,q_b)\),
+\[
+\mathcal D_\times(A,B)=p_bq_a-p_aq_b.
+\]
+Define
+\[
+W(A,B):=\mathcal D_\times(A,B).
+\]
+Then
+\[
+\mathcal D_\times(A,B)=0 \iff A\sim B.
+\]
+
+\item \textbf{Width-one bracket}
+A discrete convergence bracket is
+\[
+[L,U]
+\]
+with
+\[
+W(L,U)=1.
+\]
+
+\item \textbf{Mask condition}
+The RS-native object is the width-one integer bracket with oscillation inside it. Continuous irrational appearance is assigned no ontological role.
+
+\item \textbf{Triadic update cycle}
+For unreduced pairs \((p,q)\), with phase indexed modulo \(3\),
+\[
+(p,q)\mapsto(p+q,p),\qquad (p,q)\mapsto(p+q,p),\qquad (p,q)\mapsto(q,p).
+\]
+This is the exact triadic cycle
+\[
+\eta,\eta,\psi.
+\]
+
+\item \textbf{History is structural}
+The third element of propagation is the history element forced by unreducedness.
+
+\item \textbf{Vacuum period}
+\[
+T_{\mathrm{vac}}=11.
+\]
+
+\item \textbf{Triadic interaction period}
+\[
+N_{\mathrm{tri}}=3.
+\]
+
+\item \textbf{Phase slip}
+\[
+\delta_{\mathrm{slip}}=T_{\mathrm{vac}}\koppa N_{\mathrm{tri}}=11\koppa 3=2.
+\]
+
+\item \textbf{Barycentric period}
+\[
+T_{\mathrm{bary}}=T_{\mathrm{vac}}N_{\mathrm{tri}}=11\cdot 3=33.
+\]
+
+\item \textbf{4-4-3 partition}
+Over one vacuum cycle,
+\[
+(N_E,N_M,N_R)=(4,4,3),
+\qquad
+4+4+3=11.
+\]
+
+\item \textbf{Barycentric counts}
+Over one barycentric shell,
+\[
+(N_E,N_M,N_R)_{\mathbb B}=(12,12,9),
+\qquad
+12+12+9=33.
+\]
+\end{enumerate}
+
+\section*{II. Unreduced Elliptic State, Packets, and Shells}
+
+\begin{enumerate}[resume]
+\item \textbf{Unreduced elliptic state}
+\[
+S_t=(X_t,Y_t,Z_t)\in\mathbb Z^3,
+\]
+tracked explicitly without reduction, normalization, or identification of equivalent classes.
+
+\item \textbf{Structural tension}
+\[
+\tau_t:=X_tZ_{t+1}-X_{t+1}Z_t\in\mathbb Z.
+\]
+
+\item \textbf{Vacuum-aligned packet}
+\[
+\Omega_k=(S_{11k},S_{11k+1},\dots,S_{11k+10}).
+\]
+
+\item \textbf{Packet tension}
+\[
+\Theta_k:=\sum_{j=0}^{10}\tau_{11k+j}.
+\]
+
+\item \textbf{Barycentric shell}
+\[
+\mathbb B_k=(\Omega_{3k},\Omega_{3k+1},\Omega_{3k+2})
+=(S_{33k},S_{33k+1},\dots,S_{33k+32}).
+\]
+
+\item \textbf{Shell tension}
+\[
+\Xi_k:=\sum_{j=0}^{32}\tau_{33k+j}.
+\]
+
+\item \textbf{Packet decomposition of shell}
+\[
+\Xi_k=\Theta_{3k}+\Theta_{3k+1}+\Theta_{3k+2}.
+\]
+
+\item \textbf{Vacuum alignment}
+\[
+33\koppa 11=0.
+\]
+
+\item \textbf{Triadic alignment}
+\[
+33\koppa 3=0.
+\]
+
+\item \textbf{Minimal simultaneous closure}
+\[
+11\koppa 3=2\neq 0,\qquad 22\koppa 3=1\neq 0,\qquad 33\koppa 3=0.
+\]
+Thus \(33\) is the first simultaneous vacuum-triadic closure unit.
+
+\item \textbf{Arithmetic tension ledger}
+\[
+\mathcal A_0:=0,\qquad \mathcal A_{t+1}:=\mathcal A_t+\tau_t.
+\]
+Hence
+\[
+\tau_t=\mathcal A_{t+1}-\mathcal A_t.
+\]
+
+\item \textbf{Packet potential}
+\[
+\mathcal P_k:=\mathcal A_{11k}.
+\]
+
+\item \textbf{Packet flux law}
+\[
+\Theta_k=\mathcal P_{k+1}-\mathcal P_k.
+\]
+
+\item \textbf{Shell potential}
+\[
+\mathcal B_k:=\mathcal A_{33k}=\mathcal P_{3k}.
+\]
+
+\item \textbf{Shell law}
+\[
+\Xi_k=\mathcal B_{k+1}-\mathcal B_k.
+\]
+
+\item \textbf{Closed-shell conservation}
+If the observed shell sequence closes after \(H\) shells modulo a support modulus \(M\), then
+\[
+\sum_{k=0}^{H-1}\Xi_k\equiv 0\pmod{M^2}.
+\]
+\end{enumerate}
+
+\section*{III. Kinematics, Expansion, and Shell Activity}
+
+\begin{enumerate}[resume]
+\item \textbf{Kinematic amplitude}
+For \(m\in\mathbb Z\),
+\[
+\KinAmp(0):=0,\qquad
+\KinAmp(m):=\min\{r\in\mathbb N:-2^r<m<2^r\}\quad(m\neq 0).
+\]
+
+\item \textbf{State kinematic amplitude triple}
+\[
+\mathfrak r_t:=(\KinAmp(X_t),\KinAmp(Y_t),\KinAmp(Z_t)).
+\]
+
+\item \textbf{Packet amplitude boundary}
+\[
+\AmpBound_X^{\mathrm{pkt}}(k):=\max_{0\le j\le 10}\KinAmp(X_{11k+j}),
+\]
+\[
+\AmpBound_Y^{\mathrm{pkt}}(k):=\max_{0\le j\le 10}\KinAmp(Y_{11k+j}),
+\]
+\[
+\AmpBound_Z^{\mathrm{pkt}}(k):=\max_{0\le j\le 10}\KinAmp(Z_{11k+j}).
+\]
+
+\item \textbf{Shell amplitude boundary}
+\[
+\AmpBound_X^{\mathrm{sh}}(k):=\max_{0\le j\le 32}\KinAmp(X_{33k+j}),
+\]
+\[
+\AmpBound_Y^{\mathrm{sh}}(k):=\max_{0\le j\le 32}\KinAmp(Y_{33k+j}),
+\]
+\[
+\AmpBound_Z^{\mathrm{sh}}(k):=\max_{0\le j\le 32}\KinAmp(Z_{33k+j}).
+\]
+
+\item \textbf{Shell amplitude boundary tuple}
+\[
+\mathfrak G_k^{\mathrm{res}}=
+\big(\AmpBound_X^{\mathrm{sh}}(k),\AmpBound_Y^{\mathrm{sh}}(k),\AmpBound_Z^{\mathrm{sh}}(k)\big).
+\]
+
+\item \textbf{Cumulative shell amplitude boundary}
+\[
+\widehat\AmpBound_X(0):=\AmpBound_X^{\mathrm{sh}}(0),\qquad
+\widehat\AmpBound_X(k+1):=\max(\widehat\AmpBound_X(k),\AmpBound_X^{\mathrm{sh}}(k+1)),
+\]
+and similarly for \(\widehat\AmpBound_Y,\widehat\AmpBound_Z\).
+
+\item \textbf{Monotonicity}
+For every \(k\),
+\[
+\widehat\AmpBound_X(k+1)\ge \widehat\AmpBound_X(k),\qquad
+\widehat\AmpBound_Y(k+1)\ge \widehat\AmpBound_Y(k),\qquad
+\widehat\AmpBound_Z(k+1)\ge \widehat\AmpBound_Z(k).
+\]
+
+\item \textbf{Coordinate shell jumps}
+\[
+\Delta_X^{\mathrm{sh}}(k):=\widehat\AmpBound_X(k+1)-\widehat\AmpBound_X(k),
+\]
+\[
+\Delta_Y^{\mathrm{sh}}(k):=\widehat\AmpBound_Y(k+1)-\widehat\AmpBound_Y(k),
+\]
+\[
+\Delta_Z^{\mathrm{sh}}(k):=\widehat\AmpBound_Z(k+1)-\widehat\AmpBound_Z(k).
+\]
+
+\item \textbf{Kinematic-jump triple}
+\[
+\Delta^{\mathrm{sh}}(k):=
+\big(\Delta_X^{\mathrm{sh}}(k),\Delta_Y^{\mathrm{sh}}(k),\Delta_Z^{\mathrm{sh}}(k)\big).
+\]
+
+\item \textbf{Kinematic excitation index}
+\[
+\ExcIndex_{\mathrm{res}}(k):=
+\begin{cases}
+1,& \Delta_X^{\mathrm{sh}}(k)+\Delta_Y^{\mathrm{sh}}(k)+\Delta_Z^{\mathrm{sh}}(k)>0,\\
+0,& \Delta_X^{\mathrm{sh}}(k)+\Delta_Y^{\mathrm{sh}}(k)+\Delta_Z^{\mathrm{sh}}(k)=0.
+\end{cases}
+\]
+
+\item \textbf{Kinematic excitation criterion}
+\[
+\ExcIndex_{\mathrm{res}}(k)=1
+\iff
+\Delta_X^{\mathrm{sh}}(k)>0
+\ \text{or}\
+\Delta_Y^{\mathrm{sh}}(k)>0
+\ \text{or}\
+\Delta_Z^{\mathrm{sh}}(k)>0.
+\]
+\end{enumerate}
+
+\section*{IV. Prime Support, Rest Inertia, Total Inertial Load, and Kinetic Excess}
+
+\begin{enumerate}[resume]
+\item \textbf{Support modulus}
+Fix a support modulus
+\[
+M>1.
+\]
+Let
+\[
+\Pi(M):=\{p\in\mathbb Z_{>1}\text{ prime}:p\mid M\}.
+\]
+
+\item \textbf{Prime shadow state}
+For \(p\in\Pi(M)\),
+\[
+S_t^{(p)}:=(X_t\koppa p,\ Y_t\koppa p,\ Z_t\koppa p).
+\]
+
+\item \textbf{Prime divisibility depth of elementary tension}
+For \(p\in\Pi(M)\), define
+\[
+d_p(t):=
+\max\{m\in\mathbb Z_{\ge 0}:p^m\mid \tau_t\}
+\]
+when \(\tau_t\neq 0\), and
+\[
+d_p(t):=0
+\]
+when \(\tau_t=0\).
+
+\item \textbf{Elementary prime participation}
+\[
+c_p(t):=
+\begin{cases}
+1,& d_p(t)>0,\\
+0,& d_p(t)=0.
+\end{cases}
+\]
+
+\item \textbf{Packet prime load}
+\[
+D_p^{\mathrm{pkt}}(k):=\sum_{j=0}^{10}d_p(11k+j).
+\]
+
+\item \textbf{Packet prime participation}
+\[
+C_p^{\mathrm{pkt}}(k):=
+\begin{cases}
+1,& D_p^{\mathrm{pkt}}(k)>0,\\
+0,& D_p^{\mathrm{pkt}}(k)=0.
+\end{cases}
+\]
+
+\item \textbf{Shell prime load}
+\[
+D_p^{\mathrm{sh}}(k):=\sum_{j=0}^{32}d_p(33k+j).
+\]
+
+\item \textbf{Shell prime participation}
+\[
+C_p^{\mathrm{sh}}(k):=
+\begin{cases}
+1,& D_p^{\mathrm{sh}}(k)>0,\\
+0,& D_p^{\mathrm{sh}}(k)=0.
+\end{cases}
+\]
+
+\item \textbf{Shell prime-load decomposition}
+\[
+D_p^{\mathrm{sh}}(k)
+=
+D_p^{\mathrm{pkt}}(3k)+D_p^{\mathrm{pkt}}(3k+1)+D_p^{\mathrm{pkt}}(3k+2).
+\]
+
+\item \textbf{Global shell rest inertia}
+\[
+\RestInertia_M^{\mathrm{sh}}(k):=\sum_{p\in\Pi(M)}C_p^{\mathrm{sh}}(k).
+\]
+
+\item \textbf{Global shell total inertial load}
+\[
+\TotInertia_M^{\mathrm{sh}}(k):=\sum_{p\in\Pi(M)}D_p^{\mathrm{sh}}(k).
+\]
+
+\item \textbf{Shell kinetic excess}
+\[
+\KinExcess_p^{\mathrm{sh}}(k):=D_p^{\mathrm{sh}}(k)-C_p^{\mathrm{sh}}(k)\in\mathbb Z_{\ge 0}.
+\]
+
+\item \textbf{Global shell kinetic excess}
+\[
+\KinExcess_M^{\mathrm{sh}}(k):=\sum_{p\in\Pi(M)}\KinExcess_p^{\mathrm{sh}}(k).
+\]
+
+\item \textbf{Shell transfer identity}
+\[
+\TotInertia_M^{\mathrm{sh}}(k)
+=
+\RestInertia_M^{\mathrm{sh}}(k)+\KinExcess_M^{\mathrm{sh}}(k).
+\]
+
+\item \textbf{Support exactness}
+\[
+\RestInertia_M^{\mathrm{sh}}(k)=0
+\iff
+\TotInertia_M^{\mathrm{sh}}(k)=0
+\iff
+\KinExcess_M^{\mathrm{sh}}(k)=0.
+\]
+
+\item \textbf{Kinetic excess excitation index}
+\[
+\ExcIndex_{\mathrm{exc}}(k):=
+\begin{cases}
+1,& \KinExcess_M^{\mathrm{sh}}(k)>0,\\
+0,& \KinExcess_M^{\mathrm{sh}}(k)=0.
+\end{cases}
+\]
+
+\item \textbf{Shell rest inertia excitation index}
+\[
+\ExcIndex_{\mathrm{rest}}(k):=
+\begin{cases}
+1,& \RestInertia_M^{\mathrm{sh}}(k)>0,\\
+0,& \RestInertia_M^{\mathrm{sh}}(k)=0.
+\end{cases}
+\]
+
+\item \textbf{Kinetic source spectrum}
+\[
+\KinSource_M^{\mathrm{exc}}(k)
+:=
+\{p\in\Pi(M):\KinExcess_p^{\mathrm{sh}}(k)>0\}.
+\]
+
+\item \textbf{Spectrum criterion}
+\[
+\KinSource_M^{\mathrm{exc}}(k)\neq\varnothing
+\iff
+\KinExcess_M^{\mathrm{sh}}(k)>0.
+\]
+
+\item \textbf{Spectrum-rest-inertia lemma}
+For every \(p\in\Pi(M)\),
+\[
+\KinExcess_p^{\mathrm{sh}}(k)>0
+\Longrightarrow
+C_p^{\mathrm{sh}}(k)=1.
+\]
+
+\item \textbf{Excess-to-rest-inertia}
+\[
+\KinExcess_M^{\mathrm{sh}}(k)>0
+\Longrightarrow
+\RestInertia_M^{\mathrm{sh}}(k)>0.
+\]
+
+\item \textbf{Accumulated action increment}
+\[
+z_M^{\mathrm{exc}}(k):=\KinExcess_M^{\mathrm{sh}}(k).
+\]
+
+\item \textbf{Accumulated action}
+\[
+\AccAction_M^{\mathrm{exc}}(0):=0,\qquad
+\AccAction_M^{\mathrm{exc}}(k+1):=\AccAction_M^{\mathrm{exc}}(k)+z_M^{\mathrm{exc}}(k).
+\]
+
+\item \textbf{Accumulated action identity}
+For every \(K\ge 1\),
+\[
+\AccAction_M^{\mathrm{exc}}(K)=\sum_{k=0}^{K-1}\KinExcess_M^{\mathrm{sh}}(k).
+\]
+
+\item \textbf{Successive-shell kinetic excess criterion}
+\[
+\AccAction_M^{\mathrm{exc}}(k+1)>\AccAction_M^{\mathrm{exc}}(k)
+\iff
+\KinExcess_M^{\mathrm{sh}}(k)>0.
+\]
+\end{enumerate}
+
+\section*{V. Synthesized RS Admissibility Laws}
+
+\begin{enumerate}[resume]
+\item \textbf{Shell-kinetic-excess realization axiom}
+For every support modulus \(M\) and every barycentric shell index \(k\),
+\[
+\KinExcess_M^{\mathrm{sh}}(k)>0
+\Longrightarrow
+\Delta_X^{\mathrm{sh}}(k)+\Delta_Y^{\mathrm{sh}}(k)+\Delta_Z^{\mathrm{sh}}(k)>0.
+\]
+
+\item \textbf{Index form}
+\[
+\ExcIndex_{\mathrm{exc}}(k)=1
+\Longrightarrow
+\ExcIndex_{\mathrm{res}}(k)=1.
+\]
+
+\item \textbf{Shell-kinematic witness axiom}
+For every support modulus \(M\) and every barycentric shell index \(k\),
+\[
+\Delta_X^{\mathrm{sh}}(k)+\Delta_Y^{\mathrm{sh}}(k)+\Delta_Z^{\mathrm{sh}}(k)>0
+\Longrightarrow
+\KinExcess_M^{\mathrm{sh}}(k)>0.
+\]
+
+\item \textbf{Index form}
+\[
+\ExcIndex_{\mathrm{res}}(k)=1
+\Longrightarrow
+\ExcIndex_{\mathrm{exc}}(k)=1.
+\]
+
+\item \textbf{Activity equivalence}
+For every shell index \(k\),
+\[
+\ExcIndex_{\mathrm{exc}}(k)=\ExcIndex_{\mathrm{res}}(k).
+\]
+
+\item \textbf{Spatial displacement}
+\[
+\SpatDisp_M^{\mathrm{sh}}(k):=
+\Delta_X^{\mathrm{sh}}(k)+\Delta_Y^{\mathrm{sh}}(k)+\Delta_Z^{\mathrm{sh}}(k).
+\]
+
+\item \textbf{Exact transfer criterion}
+For every shell index \(k\),
+\[
+\AccAction_M^{\mathrm{exc}}(k+1)>\AccAction_M^{\mathrm{exc}}(k)
+\iff
+\SpatDisp_M^{\mathrm{sh}}(k)>0.
+\]
+\end{enumerate}
+
+\section*{VI. Coupled and Static Shell Classes}
+
+\begin{enumerate}[resume]
+\item \textbf{Coupled phase state}
+\[
+\CoupledState_M
+:=
+\{k:\ExcIndex_{\mathrm{exc}}(k)=1\ \text{and}\ \ExcIndex_{\mathrm{res}}(k)=1\}.
+\]
+
+\item \textbf{Static phase state}
+\[
+\StaticState_M
+:=
+\{k:\ExcIndex_{\mathrm{exc}}(k)=0\ \text{and}\ \ExcIndex_{\mathrm{res}}(k)=0\}.
+\]
+
+\item \textbf{Admissible shell dichotomy}
+For every shell index \(k\), exactly one of
+\[
+k\in\CoupledState_M,
+\qquad
+k\in\StaticState_M
+\]
+holds.
+
+\item \textbf{Coupled-shell identification}
+\[
+\{k:\ExcIndex_{\mathrm{exc}}(k)=1\}
+=
+\{k:\ExcIndex_{\mathrm{res}}(k)=1\}
+=
+\CoupledState_M.
+\]
+
+\item \textbf{Static-shell identification}
+\[
+\{k:\ExcIndex_{\mathrm{exc}}(k)=0\}
+=
+\{k:\ExcIndex_{\mathrm{res}}(k)=0\}
+=
+\StaticState_M.
+\]
+
+\item \textbf{Coupled-shell count}
+For \(K\ge 1\),
+\[
+N_M^{\mathrm{cpl}}(K):=\#(\CoupledState_M\cap\{0,\dots,K-1\}).
+\]
+
+\item \textbf{Static-shell count}
+For \(K\ge 1\),
+\[
+N_M^{\mathrm{st}}(K):=\#(\StaticState_M\cap\{0,\dots,K-1\}).
+\]
+
+\item \textbf{Count identity}
+\[
+K=N_M^{\mathrm{cpl}}(K)+N_M^{\mathrm{st}}(K).
+\]
+\end{enumerate}
+
+\section*{VII. Coupled and Static Sector Inertia}
+
+\begin{enumerate}[resume]
+\item \textbf{Coupled-shell rest inertia increment}
+\[
+z_M^{\mathrm{cpl,rest}}(k)
+:=
+\begin{cases}
+\RestInertia_M^{\mathrm{sh}}(k),& k\in\CoupledState_M,\\
+0,& k\notin\CoupledState_M.
+\end{cases}
+\]
+
+\item \textbf{Coupled-shell kinetic excess increment}
+\[
+z_M^{\mathrm{cpl,kin}}(k)
+:=
+\begin{cases}
+\KinExcess_M^{\mathrm{sh}}(k),& k\in\CoupledState_M,\\
+0,& k\notin\CoupledState_M.
+\end{cases}
+\]
+
+\item \textbf{Coupled-shell total inertial increment}
+\[
+z_M^{\mathrm{cpl,tot}}(k)
+:=
+\begin{cases}
+\TotInertia_M^{\mathrm{sh}}(k),& k\in\CoupledState_M,\\
+0,& k\notin\CoupledState_M.
+\end{cases}
+\]
+
+\item \textbf{Static-shell rest inertia increment}
+\[
+z_M^{\mathrm{st,rest}}(k)
+:=
+\begin{cases}
+\RestInertia_M^{\mathrm{sh}}(k),& k\in\StaticState_M,\\
+0,& k\notin\StaticState_M.
+\end{cases}
+\]
+
+\item \textbf{Static-shell kinetic excess increment}
+\[
+z_M^{\mathrm{st,kin}}(k)
+:=
+\begin{cases}
+\KinExcess_M^{\mathrm{sh}}(k),& k\in\StaticState_M,\\
+0,& k\notin\StaticState_M.
+\end{cases}
+\]
+
+\item \textbf{Static-shell total inertial increment}
+\[
+z_M^{\mathrm{st,tot}}(k)
+:=
+\begin{cases}
+\TotInertia_M^{\mathrm{sh}}(k),& k\in\StaticState_M,\\
+0,& k\notin\StaticState_M.
+\end{cases}
+\]
+
+\item \textbf{Coupled rest inertia}
+\[
+\RestInertia_M^{\mathrm{cpl}}(K):=\sum_{k=0}^{K-1}z_M^{\mathrm{cpl,rest}}(k).
+\]
+
+\item \textbf{Coupled kinetic excess}
+\[
+\KinExcess_M^{\mathrm{cpl}}(K):=\sum_{k=0}^{K-1}z_M^{\mathrm{cpl,kin}}(k).
+\]
+
+\item \textbf{Coupled total inertial load}
+\[
+\TotInertia_M^{\mathrm{cpl}}(K):=\sum_{k=0}^{K-1}z_M^{\mathrm{cpl,tot}}(k).
+\]
+
+\item \textbf{Static rest inertia}
+\[
+\RestInertia_M^{\mathrm{st}}(K):=\sum_{k=0}^{K-1}z_M^{\mathrm{st,rest}}(k).
+\]
+
+\item \textbf{Static kinetic excess}
+\[
+\KinExcess_M^{\mathrm{st}}(K):=\sum_{k=0}^{K-1}z_M^{\mathrm{st,kin}}(k).
+\]
+
+\item \textbf{Static total inertial load}
+\[
+\TotInertia_M^{\mathrm{st}}(K):=\sum_{k=0}^{K-1}z_M^{\mathrm{st,tot}}(k).
+\]
+
+\item \textbf{Coupled-sector transfer identity}
+\[
+\TotInertia_M^{\mathrm{cpl}}(K)
+=
+\RestInertia_M^{\mathrm{cpl}}(K)+\KinExcess_M^{\mathrm{cpl}}(K).
+\]
+
+\item \textbf{Static-sector transfer identity}
+\[
+\TotInertia_M^{\mathrm{st}}(K)=\RestInertia_M^{\mathrm{st}}(K).
+\]
+
+\item \textbf{Static kinetic excess collapse}
+\[
+\KinExcess_M^{\mathrm{st}}(K)=0.
+\]
+
+\item \textbf{Kinetic excess reduction to coupled sector}
+\[
+\KinExcess_M^{\mathrm{cpl}}(K)=\AccAction_M^{\mathrm{exc}}(K).
+\]
+
+\item \textbf{Total rest inertia decomposition}
+\[
+\sum_{k=0}^{K-1}\RestInertia_M^{\mathrm{sh}}(k)
+=
+\RestInertia_M^{\mathrm{cpl}}(K)+\RestInertia_M^{\mathrm{st}}(K).
+\]
+
+\item \textbf{Total inertial load decomposition}
+\[
+\sum_{k=0}^{K-1}\TotInertia_M^{\mathrm{sh}}(k)
+=
+\TotInertia_M^{\mathrm{cpl}}(K)+\TotInertia_M^{\mathrm{st}}(K).
+\]
+
+\item \textbf{Total kinetic excess decomposition}
+\[
+\sum_{k=0}^{K-1}\KinExcess_M^{\mathrm{sh}}(k)
+=
+\KinExcess_M^{\mathrm{cpl}}(K)=\AccAction_M^{\mathrm{exc}}(K).
+\]
+\end{enumerate}
+
+\section*{VIII. Global Closed-Cycle Transfer Law}
+
+\begin{enumerate}[resume]
+\item \textbf{Closed-cycle rest inertia}
+For a closed shell cycle of length \(H\),
+\[
+\RestInertia_M^{\mathrm{cyc}}:=\sum_{k=0}^{H-1}\RestInertia_M^{\mathrm{sh}}(k).
+\]
+
+\item \textbf{Closed-cycle total inertial load}
+\[
+\TotInertia_M^{\mathrm{cyc}}:=\sum_{k=0}^{H-1}\TotInertia_M^{\mathrm{sh}}(k).
+\]
+
+\item \textbf{Closed-cycle transfer law}
+\[
+\TotInertia_M^{\mathrm{cyc}}
+=
+\RestInertia_M^{\mathrm{cyc}}+\AccAction_M^{\mathrm{exc}}(H).
+\]
+
+\item \textbf{Closed-cycle domination law}
+\[
+\TotInertia_M^{\mathrm{cyc}}\ge \RestInertia_M^{\mathrm{cyc}}.
+\]
+
+\item \textbf{Closed-cycle equality criterion}
+\[
+\TotInertia_M^{\mathrm{cyc}}=\RestInertia_M^{\mathrm{cyc}}
+\iff
+\AccAction_M^{\mathrm{exc}}(H)=0.
+\]
+
+\item \textbf{Closed-cycle strict-domination criterion}
+\[
+\TotInertia_M^{\mathrm{cyc}}>\RestInertia_M^{\mathrm{cyc}}
+\iff
+\AccAction_M^{\mathrm{exc}}(H)>0.
+\]
+
+\item \textbf{Shell-count lower bound}
+\[
+\AccAction_M^{\mathrm{exc}}(H)\ge N_M^{\mathrm{cpl}}(H).
+\]
+
+\item \textbf{Strengthened domination law}
+\[
+\TotInertia_M^{\mathrm{cyc}}
+\ge
+\RestInertia_M^{\mathrm{cyc}}+N_M^{\mathrm{cpl}}(H).
+\]
+\end{enumerate}
+
+\section*{IX. Resonance Ensembles, Minima, and Canonical Reduction}
+
+\begin{enumerate}[resume]
+\item \textbf{Admissible support-modulus resonance ensemble}
+Let
+\[
+\ResEns
+\]
+be a nonempty finite set of support moduli such that for every
+\[
+M\in\ResEns
+\]
+the observed shell sequence closes after a finite shell length
+\[
+H_M\in\mathbb Z_{>0}.
+\]
+
+\item \textbf{Ensemble rest inertia function}
+\[
+\RestInertia_{\ResEns}(M):=\RestInertia_M^{\mathrm{cyc}}.
+\]
+
+\item \textbf{Ensemble total inertial load function}
+\[
+\TotInertia_{\ResEns}(M):=\TotInertia_M^{\mathrm{cyc}}.
+\]
+
+\item \textbf{Ensemble accumulated action function}
+\[
+\AccAction_{\ResEns}(M):=\AccAction_M^{\mathrm{exc}}(H_M).
+\]
+
+\item \textbf{Ensemble coupled-shell count}
+\[
+N_{\ResEns}^{\mathrm{cpl}}(M):=N_M^{\mathrm{cpl}}(H_M).
+\]
+
+\item \textbf{Moduluswise transfer law}
+For every
+\[
+M\in\ResEns,
+\]
+\[
+\TotInertia_{\ResEns}(M)
+=
+\RestInertia_{\ResEns}(M)+\AccAction_{\ResEns}(M).
+\]
+
+\item \textbf{Moduluswise strengthened domination}
+\[
+\TotInertia_{\ResEns}(M)\ge \RestInertia_{\ResEns}(M)+N_{\ResEns}^{\mathrm{cpl}}(M).
+\]
+
+\item \textbf{Ensemble rest inertia minimum}
+\[
+\RestInertia_{\ResEns}^{\min}:=\min_{M\in\ResEns}\RestInertia_{\ResEns}(M).
+\]
+
+\item \textbf{Ensemble raw total inertial minimum}
+\[
+\TotInertia_{\ResEns}^{\min}:=\min_{M\in\ResEns}\TotInertia_{\ResEns}(M).
+\]
+
+\item \textbf{Rest-inertia-minimizing sub-ensemble}
+\[
+\ResEns_{\varkappa}
+:=
+\{M\in\ResEns:\RestInertia_{\ResEns}(M)=\RestInertia_{\ResEns}^{\min}\}.
+\]
+
+\item \textbf{Reduced total inertial minimum on rest-inertia-minimizing sub-ensemble}
+\[
+\TotInertia_{\ResEns}^{\mathrm{red}}
+:=
+\min_{M\in\ResEns_{\varkappa}}\TotInertia_{\ResEns}(M).
+\]
+
+\item \textbf{Canonical support modulus}
+Choose
+\[
+M_{\ResEns}^{\dagger}\in\ResEns_{\varkappa}
+\]
+such that
+\[
+\TotInertia_{\ResEns}(M_{\ResEns}^{\dagger})
+=
+\TotInertia_{\ResEns}^{\mathrm{red}}.
+\]
+
+\item \textbf{Canonical accumulated action}
+\[
+\AccAction_{\ResEns}^{\dagger}
+:=
+\AccAction_{\ResEns}(M_{\ResEns}^{\dagger}).
+\]
+
+\item \textbf{Canonical coupled-shell count}
+\[
+N_{\ResEns}^{\dagger, \mathrm{cpl}}
+:=
+N_{\ResEns}^{\mathrm{cpl}}(M_{\ResEns}^{\dagger}).
+\]
+
+\item \textbf{Canonical transfer law}
+\[
+\TotInertia_{\ResEns}^{\mathrm{red}}
+=
+\RestInertia_{\ResEns}^{\min}
++
+\AccAction_{\ResEns}^{\dagger}.
+\]
+
+\item \textbf{Canonical strengthened domination}
+\[
+\TotInertia_{\ResEns}^{\mathrm{red}}
+\ge
+\RestInertia_{\ResEns}^{\min}
++
+N_{\ResEns}^{\dagger, \mathrm{cpl}}.
+\]
+
+\item \textbf{Canonical equality criterion}
+\[
+\TotInertia_{\ResEns}^{\mathrm{red}}
+=
+\RestInertia_{\ResEns}^{\min}
+\iff
+\AccAction_{\ResEns}^{\dagger}=0
+\iff
+N_{\ResEns}^{\dagger, \mathrm{cpl}}=0.
+\]
+
+\item \textbf{Canonical strict-domination criterion}
+\[
+\TotInertia_{\ResEns}^{\mathrm{red}}
+>
+\RestInertia_{\ResEns}^{\min}
+\iff
+\AccAction_{\ResEns}^{\dagger}>0
+\iff
+N_{\ResEns}^{\dagger, \mathrm{cpl}}>0.
+\]
+
+\item \textbf{Equilibrium Projection Operator}
+\[
+\GroundProj(\ResEns):=M_{\ResEns}^{\dagger}.
+\]
+\end{enumerate}
+
+\section*{X. Admissible Ensemble Expansion}
+
+\begin{enumerate}[resume]
+\item \textbf{Admissible ensemble expansion}
+For two admissible resonance ensembles
+\[
+\ResEns,\ResEnsAlt,
+\]
+define
+\[
+\ResEns\sqsubseteq_{\mathrm{ens}}\ResEnsAlt
+\iff
+\ResEns\subseteq\ResEnsAlt.
+\]
+
+\item \textbf{Rest inertia minimum under expansion}
+If
+\[
+\ResEns\sqsubseteq_{\mathrm{ens}}\ResEnsAlt,
+\]
+then
+\[
+\RestInertia_{\ResEnsAlt}^{\min}\le \RestInertia_{\ResEns}^{\min}.
+\]
+
+\item \textbf{Raw total inertial minimum under expansion}
+If
+\[
+\ResEns\sqsubseteq_{\mathrm{ens}}\ResEnsAlt,
+\]
+then
+\[
+\TotInertia_{\ResEnsAlt}^{\min}\le \TotInertia_{\ResEns}^{\min}.
+\]
+
+\item \textbf{Rest-inertia-stable expansion}
+An expansion is rest-inertia-stable if
+\[
+\RestInertia_{\ResEnsAlt}^{\min}=\RestInertia_{\ResEns}^{\min}.
+\]
+
+\item \textbf{Reduced total inertial load under rest-inertia-stable expansion}
+If
+\[
+\ResEns\sqsubseteq_{\mathrm{ens}}\ResEnsAlt
+\]
+is rest-inertia-stable, then
+\[
+\TotInertia_{\ResEnsAlt}^{\mathrm{red}}
+\le
+\TotInertia_{\ResEns}^{\mathrm{red}}.
+\]
+
+\item \textbf{Canonical reduction monotonicity}
+If
+\[
+\ResEns\sqsubseteq_{\mathrm{ens}}\ResEnsAlt
+\]
+is rest-inertia-stable, then
+\[
+\TotInertia_{\ResEnsAlt}\big(\GroundProj(\ResEnsAlt)\big)
+\le
+\TotInertia_{\ResEns}\big(\GroundProj(\ResEns)\big).
+\]
+\end{enumerate}
+
+\section*{XI. Sequential Ground State Stabilization}
+
+\begin{enumerate}[resume]
+\item \textbf{Rest-inertia-stable admissible expansion sequence}
+A sequence
+\[
+(\ResEns_n)_{n\in\mathbb Z_{\ge 0}}
+\]
+is rest-inertia-stable if:
+\[
+\ResEns_n\sqsubseteq_{\mathrm{ens}}\ResEns_{n+1}
+\quad\text{for all }n,
+\]
+and
+\[
+\RestInertia_{\ResEns_{n+1}}^{\min}
+=
+\RestInertia_{\ResEns_n}^{\min}
+\quad\text{for all }n.
+\]
+
+\item \textbf{Constant rest inertia value}
+Define
+\[
+\RestInertia_\bullet:=\RestInertia_{\ResEns_n}^{\min}
+\]
+for any \(n\). This is well-defined.
+
+\item \textbf{Reduced total inertial trajectory}
+\[
+\TotInertia_n:=\TotInertia_{\ResEns_n}^{\mathrm{red}}\in\mathbb Z_{\ge 0}.
+\]
+
+\item \textbf{Canonical accumulated action trajectory}
+\[
+\AccAction_n:=\AccAction_{\ResEns_n}^{\dagger}\in\mathbb Z_{\ge 0}.
+\]
+
+\item \textbf{Monotonicity}
+For every \(n\),
+\[
+\TotInertia_{n+1}\le \TotInertia_n.
+\]
+
+\item \textbf{Relaxation nodes}
+\[
+\RelaxNodes:=\{n\in\mathbb Z_{\ge 0}:\TotInertia_{n+1}<\TotInertia_n\}.
+\]
+
+\item \textbf{Finite-relaxation lemma}
+\[
+\RelaxNodes
+\]
+is finite.
+
+\item \textbf{Ground state index}
+\[
+N_\ast
+:=
+\begin{cases}
+0,& \RelaxNodes=\varnothing,\\[4pt]
+1+\max\RelaxNodes,& \RelaxNodes\neq\varnothing.
+\end{cases}
+\]
+
+\item \textbf{Ground state stabilization theorem}
+For every
+\[
+n\ge N_\ast,
+\]
+\[
+\TotInertia_n=\TotInertia_{N_\ast}.
+\]
+
+\item \textbf{Ground state ensemble}
+\[
+\ResEns_\ast:=\ResEns_{N_\ast}.
+\]
+
+\item \textbf{Ground state total inertial load}
+\[
+\TotInertia_\ast:=\TotInertia_{\ResEns_\ast}^{\mathrm{red}}.
+\]
+
+\item \textbf{Ground state rest inertia}
+\[
+\RestInertia_\ast:=\RestInertia_{\ResEns_\ast}^{\min}=\RestInertia_\bullet.
+\]
+
+\item \textbf{Ground state kinetic excess}
+\[
+\AccAction_\ast:=\AccAction_{\ResEns_\ast}^{\dagger}.
+\]
+
+\item \textbf{Ground state coupled-shell count}
+\[
+N_\ast^{\mathrm{cpl}}:=N_{\ResEns_\ast}^{\dagger, \mathrm{cpl}}.
+\]
+
+\item \textbf{Ground state support modulus}
+\[
+M_\ast:=\GroundProj(\ResEns_\ast).
+\]
+
+\item \textbf{Ground state transfer law}
+\[
+\TotInertia_\ast=\RestInertia_\ast+\AccAction_\ast.
+\]
+
+\item \textbf{Ground state domination law}
+\[
+\TotInertia_\ast\ge \RestInertia_\ast.
+\]
+
+\item \textbf{Ground state strengthened domination}
+\[
+\TotInertia_\ast\ge \RestInertia_\ast+N_\ast^{\mathrm{cpl}}.
+\]
+
+\item \textbf{Ground state equality criterion}
+\[
+\TotInertia_\ast=\RestInertia_\ast
+\iff
+\AccAction_\ast=0
+\iff
+N_\ast^{\mathrm{cpl}}=0.
+\]
+
+\item \textbf{Ground state strict-domination criterion}
+\[
+\TotInertia_\ast>\RestInertia_\ast
+\iff
+\AccAction_\ast>0
+\iff
+N_\ast^{\mathrm{cpl}}>0.
+\]
+
+\item \textbf{Tail stability}
+For every
+\[
+n\ge N_\ast,
+\]
+\[
+\TotInertia_{\ResEns_n}^{\mathrm{red}}=\TotInertia_\ast,
+\qquad
+\RestInertia_{\ResEns_n}^{\min}=\RestInertia_\ast,
+\qquad
+\AccAction_{\ResEns_n}^{\dagger}=\AccAction_\ast.
+\]
+
+\item \textbf{Ground state equilibrium}
+\[
+\GroundEq:=(\RestInertia_\ast,\TotInertia_\ast,\AccAction_\ast).
+\]
+
+\item \textbf{Ground state equilibrium law}
+\[
+\GroundEq=(\RestInertia_\ast,\RestInertia_\ast+\AccAction_\ast,\AccAction_\ast).
+\]
+\end{enumerate}
+
+\section*{XII. Evolutionary Trajectory Ground State Equilibrium}
+
+\begin{enumerate}[resume]
+\item \textbf{Directed admissible rest-inertia-stable evolutionary trajectory}
+A directed admissible rest-inertia-stable evolutionary trajectory is a nonempty set
+\[
+\EvolTraj
+\]
+of admissible resonance ensembles such that
+\[
+\forall \ResEns,\ResEnsAlt\in\EvolTraj,\ \exists \phi\in\EvolTraj
+\text{ with }
+\ResEns\sqsubseteq_{\mathrm{ens}}\phi
+\ \text{and}\
+\ResEnsAlt\sqsubseteq_{\mathrm{ens}}\phi,
+\]
+and every expansion inside \(\EvolTraj\) is rest-inertia-stable.
+
+\item \textbf{Trajectory rest inertia value}
+For \(\ResEns\in\EvolTraj\), define
+\[
+\RestInertia_{\EvolTraj}:=\RestInertia_{\ResEns}^{\min}.
+\]
+
+\item \textbf{Well-definedness}
+\[
+\RestInertia_{\EvolTraj}
+\]
+is well-defined.
+
+\item \textbf{Trajectory inertial spectrum}
+\[
+\InertialSpec_{\EvolTraj}
+:=
+\{\TotInertia_{\ResEns}^{\mathrm{red}}:\ResEns\in\EvolTraj\}
+\subseteq \mathbb Z_{\ge 0}.
+\]
+
+\item \textbf{Trajectory total inertial minimum}
+\[
+\TotInertia_{\EvolTraj}^{\min}
+:=
+\min \InertialSpec_{\EvolTraj}.
+\]
+
+\item \textbf{Minimizing ensemble}
+Choose
+\[
+\ResEns_{\EvolTraj}^{\min}\in\EvolTraj
+\]
+such that
+\[
+\TotInertia_{\ResEns_{\EvolTraj}^{\min}}^{\mathrm{red}}
+=
+\TotInertia_{\EvolTraj}^{\min}.
+\]
+
+\item \textbf{Trajectory accumulated action}
+\[
+\AccAction_{\EvolTraj}^{\min}
+:=
+\AccAction_{\ResEns_{\EvolTraj}^{\min}}^{\dagger}.
+\]
+
+\item \textbf{Trajectory coupled-shell count}
+\[
+N_{\EvolTraj}^{\min, \mathrm{cpl}}
+:=
+N_{\ResEns_{\EvolTraj}^{\min}}^{\dagger, \mathrm{cpl}}.
+\]
+
+\item \textbf{Trajectory transfer law}
+\[
+\TotInertia_{\EvolTraj}^{\min}
+=
+\RestInertia_{\EvolTraj}+\AccAction_{\EvolTraj}^{\min}.
+\]
+
+\item \textbf{Trajectory domination law}
+\[
+\TotInertia_{\EvolTraj}^{\min}\ge \RestInertia_{\EvolTraj}.
+\]
+
+\item \textbf{Trajectory strengthened domination}
+\[
+\TotInertia_{\EvolTraj}^{\min}\ge \RestInertia_{\EvolTraj}+N_{\EvolTraj}^{\min, \mathrm{cpl}}.
+\]
+
+\item \textbf{Trajectory equality criterion}
+\[
+\TotInertia_{\EvolTraj}^{\min}=\RestInertia_{\EvolTraj}
+\iff
+\AccAction_{\EvolTraj}^{\min}=0
+\iff
+N_{\EvolTraj}^{\min, \mathrm{cpl}}=0.
+\]
+
+\item \textbf{Trajectory strict-domination criterion}
+\[
+\TotInertia_{\EvolTraj}^{\min}>\RestInertia_{\EvolTraj}
+\iff
+\AccAction_{\EvolTraj}^{\min}>0
+\iff
+N_{\EvolTraj}^{\min, \mathrm{cpl}}>0.
+\]
+
+\item \textbf{Cofinal realization theorem}
+For every
+\[
+\ResEnsAlt\in\EvolTraj,
+\]
+there exists
+\[
+\phi\in\EvolTraj
+\]
+such that
+\[
+\ResEnsAlt\sqsubseteq_{\mathrm{ens}}\phi
+\]
+and
+\[
+\RestInertia_{\phi}^{\min}=\RestInertia_{\EvolTraj},
+\qquad
+\TotInertia_{\phi}^{\mathrm{red}}=\TotInertia_{\EvolTraj}^{\min}.
+\]
+
+\item \textbf{Cofinal kinetic excess realization}
+For every
+\[
+\ResEnsAlt\in\EvolTraj,
+\]
+there exists
+\[
+\phi\in\EvolTraj
+\]
+such that
+\[
+\ResEnsAlt\sqsubseteq_{\mathrm{ens}}\phi
+\]
+and
+\[
+\AccAction_{\phi}^{\dagger}
+=
+\TotInertia_{\EvolTraj}^{\min}-\RestInertia_{\EvolTraj}.
+\]
+
+\item \textbf{Trajectory ground state equilibrium}
+\[
+\GroundEq_{\EvolTraj}
+:=
+(\RestInertia_{\EvolTraj},\TotInertia_{\EvolTraj}^{\min},\AccAction_{\EvolTraj}^{\min}).
+\]
+
+\item \textbf{Trajectory ground state equilibrium law}
+\[
+\GroundEq_{\EvolTraj}
+=
+(\RestInertia_{\EvolTraj},\RestInertia_{\EvolTraj}+\AccAction_{\EvolTraj}^{\min},\AccAction_{\EvolTraj}^{\min}).
+\]
+
+\item \textbf{Trajectory ground state theorem}
+Every directed admissible rest-inertia-stable evolutionary trajectory admits a cofinal ground state equilibrium
+\[
+\GroundEq_{\EvolTraj}
+=
+(\RestInertia_{\EvolTraj},\TotInertia_{\EvolTraj}^{\min},\AccAction_{\EvolTraj}^{\min})
+\]
+such that for every
+\[
+\ResEnsAlt\in\EvolTraj,
+\]
+there exists
+\[
+\phi\in\EvolTraj
+\]
+with
+\[
+\ResEnsAlt\sqsubseteq_{\mathrm{ens}}\phi
+\]
+and
+\[
+\RestInertia_{\phi}^{\min}=\RestInertia_{\EvolTraj},
+\qquad
+\TotInertia_{\phi}^{\mathrm{red}}=\TotInertia_{\EvolTraj}^{\min},
+\qquad
+\AccAction_{\phi}^{\dagger}
+=
+\TotInertia_{\EvolTraj}^{\min}-\RestInertia_{\EvolTraj}.
+\]
+
+\item \textbf{Trajectory closure law}
+\[
+\TotInertia_{\EvolTraj}^{\min}
+=
+\RestInertia_{\EvolTraj}
++
+\AccAction_{\EvolTraj}^{\min}
+\ge
+\RestInertia_{\EvolTraj}.
+\]
+
+\item \textbf{Ground state equilibrium}
+The RS ground state equilibrium for the fixed unreduced resonance ensemble is the cofinal ground state equilibrium
+\[
+\GroundEq_{\EvolTraj}
+=
+(\RestInertia_{\EvolTraj},\TotInertia_{\EvolTraj}^{\min},\AccAction_{\EvolTraj}^{\min}).
+\]
+\end{enumerate}
+
+\end{document}

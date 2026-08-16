@@ -1,0 +1,312 @@
+\documentclass[11pt, letterpaper]{article}
+
+\usepackage[top=0.85in, bottom=0.85in, left=0.85in, right=0.85in]{geometry}
+\usepackage{amsmath, amssymb, amsthm, mathtools}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{setspace}
+\usepackage[T1]{fontenc}
+\usepackage{enumitem}
+\usepackage{tocloft}
+\usepackage{tcolorbox}
+\tcbuselibrary{breakable, skins}
+
+% --- Color Definitions ---
+\definecolor{RSblue}{RGB}{25, 60, 120}
+\definecolor{RSgray}{RGB}{90, 90, 90}
+\definecolor{RSgreen}{RGB}{20, 110, 60}
+\definecolor{RSred}{RGB}{160, 30, 30}
+\definecolor{RSamber}{RGB}{180, 110, 0}
+\definecolor{RSpurple}{RGB}{90, 30, 120}
+
+% --- Box Environments ---
+\newtcolorbox{rsbox}{
+  enhanced, breakable,
+  colback=RSblue!4, colframe=RSblue!60,
+  title={\textbf{RS Ontological Statement}},
+  fonttitle=\small\bfseries\color{white},
+  attach boxed title to top left={yshift=-2mm, xshift=4mm},
+  boxed title style={colback=RSblue},
+  left=4pt, right=4pt, top=6pt, bottom=4pt
+}
+
+\newtcolorbox{verifybox}{
+  enhanced, breakable,
+  colback=RSgreen!4, colframe=RSgreen!50,
+  title={\textbf{External Verification (Continuous Lens)}},
+  fonttitle=\small\bfseries\color{white},
+  attach boxed title to top left={yshift=-2mm, xshift=4mm},
+  boxed title style={colback=RSgreen!70!black},
+  left=4pt, right=4pt, top=6pt, bottom=4pt
+}
+
+\newtcolorbox{observebox}{
+  enhanced, breakable,
+  colback=RSamber!5, colframe=RSamber!60,
+  title={\textbf{Structural Observation}},
+  fonttitle=\small\bfseries\color{white},
+  attach boxed title to top left={yshift=-2mm, xshift=4mm},
+  boxed title style={colback=RSamber!80!black},
+  left=4pt, right=4pt, top=6pt, bottom=4pt
+}
+
+% --- Page Style ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{RSgray}{RigbySpace Discrete Dynamics}}
+\fancyhead[R]{\small\textcolor{RSgray}{Mediant Geodesics -- Page \thepage}}
+\fancyfoot[L]{\small\textcolor{RSgray}{D. Veneziano}}
+\fancyfoot[R]{\small\textcolor{RSgray}{Discrete Unification Framework}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% --- Section Formatting ---
+\titleformat{\section}
+  {\large\bfseries\color{RSblue}}{\thesection}{1em}{}[\titlerule]
+\titleformat{\subsection}
+  {\normalsize\bfseries\color{RSblue}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{RSgray}}{\thesubsubsection}{1em}{}
+
+\onehalfspacing
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+
+% --- Macros ---
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\SL}{S_{\mathrm{L}}}
+\newcommand{\koppa}{\mathbin{\text{\rm\k{o}}}}
+\newcommand{\succOp}{\operatorname{succ}}
+\newcommand{\PG}{\mathrm{PG}}
+\newcommand{\Dcross}{\Delta_{\mathrm{cross}}}
+\newcommand{\Tvac}{T_{\mathrm{vac}}}
+\newcommand{\Tbary}{T_{\mathrm{bary}}}
+\newcommand{\Dg}{D_{\mathrm{gauge}}}
+\newcommand{\Sint}{S_{\mathrm{int}}}
+\newcommand{\Sigimb}{\Sigma_{\mathrm{imb}}}
+\newcommand{\Gmg}{G_{\mathrm{mg}}}
+\newcommand{\dslip}{\delta_{\mathrm{slip}}}
+\newcommand{\tauX}{\tau_{10}}
+\newcommand{\aSC}{\alpha^{-1}_{\mathrm{int}}}
+\newcommand{\med}{\oplus}
+\newcommand{\aop}{\eta}
+\newcommand{\lop}{\lambda}
+\newcommand{\psiop}{\psi}
+\newcommand{\rank}{\rho}
+\newcommand{\Sigs}{\Sigma_{\mathrm{s}}}
+\newcommand{\Xis}{\Xi_{\mathrm{s}}}
+\newcommand{\Omegas}{\Omega_{\mathrm{s}}}
+\newcommand{\Pithree}{\Pi_3}
+\newcommand{\nG}{n_G}
+\newcommand{\Ksat}{K_{\mathrm{sat}}}
+\newcommand{\RD}{R_D}
+\newcommand{\bplus}{\boxplus}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\Huge\bfseries\color{RSblue} RigbySpace Discrete Dynamics\par}
+  \vspace{0.5cm}
+  {\LARGE Mediant Geodesics and Structural Transport\par}
+  \vspace{0.5cm}
+  {\large The Discrete Integer Topology of Spacetime\par}
+  \vspace{2cm}
+  \rule{0.6\textwidth}{0.4pt}\par
+  \vspace{1cm}
+  {\large D.\ Veneziano\par}
+  \vspace{0.8cm}
+  {\normalsize RigbySpace Discrete Dynamics\par}
+  \vspace{1.5cm}
+  \rule{0.6\textwidth}{0.4pt}\par
+  \vspace{0.5cm}
+  {\small $\Tvac = 11 \quad N = 3$ \par}
+  \vfill
+  {\small\color{RSgray}
+  RigbySpace is a formally consistent candidate theory internal to its own
+  axioms. No empirical equivalence to external physical theory is asserted
+  unless an explicit mapping is provided and derived under that mapping.\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+%=====================================================================
+\section{Introduction: The Rejection of the Continuum}
+%=====================================================================
+
+In General Relativity, a geodesic is the shortest path between two points on a curved, continuous spacetime manifold, determined by solving differential equations derived from a metric tensor. 
+
+RigbySpace (RS) rejects the existence of a continuous background manifold. Space and time are not a pre-existing stage; they are the structural ledgers generated by the interaction of integer states. Therefore, a "path" through space cannot be a continuous curve. It must be a discrete sequence of integer operations.
+
+This document formalizes the \textbf{Mediant Geodesic}. It demonstrates how the Mediant Sum ($\med$) and the Cross-Determinant ($\Dcross$) define a strict, discrete topology (the Mediant Tree). It proves that the classical free-particle trajectory is the macroscopic mask of the Linear Transform ($\lop$), and that gravitational coupling is the exact geodesic length required to resolve the metric bases of two interacting states.
+
+%=====================================================================
+\section{The Mediant Tree Topology}
+%=====================================================================
+
+The topology of RigbySpace is defined by the relationships between Explicit Rational Pairs (ERPs). Because GCD reduction is forbidden, the distance between two states is not their numerical difference, but their structural width.
+
+\subsection{Cross-Ordering and Width}
+
+\begin{definition}[Cross-Ordering and Width]\label{def:width}
+\begin{rsbox}
+For two ERPs $A = (p_a, q_a)$ and $B = (p_b, q_b)$ in $\SL$, the Cross-Determinant is:
+\[ \Dcross(A, B) := p_b q_a - p_a q_b \in \Z \]
+
+*   We write $A \prec B$ when $\Dcross(A, B) > 0$.
+*   If $L \prec U$, the \textbf{Width} of the bracket $[L, U]$ is defined as:
+    \[ W(L, U) := \Dcross(L, U) \in \Z_{>0} \]
+*   A bracket is \textbf{Saturated} (the states are adjacent) when $W(L, U) = 1$.
+\end{rsbox}
+\end{definition}
+
+\subsection{The Mediant Sum and Width Preservation}
+
+\begin{definition}[The Mediant Sum]\label{def:mediant}
+\begin{rsbox}
+For $A = (a, b)$ and $B = (c, d)$ in $\SL$, the Mediant Sum is:
+\[ A \med B := (a + c,\; b + d) \]
+The mediant sum is an ERP-valued operation internal to the integer lattice. It is the fundamental mechanism of elastic kinematic translation.
+\end{rsbox}
+\end{definition}
+
+\begin{theorem}[Width Preservation under Mediant Insertion]\label{thm:width_preservation}
+\begin{rsbox}
+Let $L = (a, b)$ and $U = (c, d)$ with $L \prec U$, and let $M := L \med U = (a + c, b + d)$.
+Then:
+\[ \Dcross(L, M) = \Dcross(L, U) \]
+\[ \Dcross(M, U) = \Dcross(L, U) \]
+Consequently, the child brackets inherit the exact width of the parent bracket:
+\[ W(L, M) = W(M, U) = W(L, U) \]
+
+\textbf{Proof:}
+$\Dcross(L, M) = (a+c)b - a(b+d) = ab + cb - ab - ad = cb - ad = \Dcross(L, U)$.
+$\Dcross(M, U) = c(b+d) - (a+c)d = cb + cd - ad - cd = cb - ad = \Dcross(L, U)$.
+\end{rsbox}
+\end{theorem}
+
+\begin{corollary}[The Mediant Lies Strictly Between]\label{cor:mediant_between}
+\begin{rsbox}
+If $\Dcross(L, U) > 0$, then $L \prec M \prec U$. The mediant is the unique ERP that lies strictly between $L$ and $U$ while preserving the cross-determinant width to both bounds.
+\end{rsbox}
+\end{corollary}
+
+\subsection{The Root Bracket and ZERO-Context Boundaries}
+
+\begin{definition}[The Root Bracket]\label{def:root_bracket}
+\begin{rsbox}
+The root bracket of the Mediant Tree uses the formal ZERO-context seeds:
+\[ B_0 := [(0, 1),\; (1, 0)] \]
+*   $(0, 1)$ is the empty lattice position (deposits causal depth, no magnitude).
+*   $(1, 0)$ is the constraint vacuum (suspended history, no metric basis).
+
+The root bracket is saturated:
+\[ W((0, 1), (1, 0)) = (1 \times 1) - (0 \times 0) = 1 \]
+
+The first interior state is the mediant:
+\[ (0, 1) \med (1, 0) = (1, 1) \]
+This is the luminal vacuum unit ($\Gamma = 0$).
+\end{rsbox}
+\end{definition}
+
+%=====================================================================
+\section{Mediant Geodesics and Structural Symbols}
+%=====================================================================
+
+The Mediant Tree $\mathcal{T}$ is the rooted binary tree obtained by recursive application of the Mediant Sum to the root bracket $B_0$. Every vertex in this tree is an ERP.
+
+\begin{definition}[Mediant Geodesic $\gamma(A, B)$]\label{def:geodesic}
+\begin{rsbox}
+For vertices $A$ and $B$ of $\mathcal{T}$, the Mediant Geodesic $\gamma(A, B)$ is the unique simple path in the graph of $\mathcal{T}$ from $A$ to $B$.
+Because the recursive construction produces a rooted binary tree with no cycles, the path between any two vertices is absolutely unique.
+\end{rsbox}
+\end{definition}
+
+\begin{definition}[Geodesic Length]\label{def:geodesic_length}
+\begin{rsbox}
+If $\gamma(A, B) = (S_0, S_1, \dots, S_m)$ with $S_0 = A$ and $S_m = B$, then the geodesic length is the edge count:
+\[ \ell(\gamma(A, B)) := m \]
+\end{rsbox}
+\end{definition}
+
+\begin{theorem}[Structural Symbol Additivity]\label{thm:symbol_additivity}
+\begin{rsbox}
+The structural symbol $\{A, B\}$ is the formal sum of the oriented mediant geodesic edges from $A$ to $B$.
+If vertex $B$ lies on the geodesic $\gamma(A, C)$, then:
+\[ \{A, C\} = \{A, B\} + \{B, C\} \]
+This guarantees closed triangular cancellation:
+\[ \{A, B\} + \{B, C\} + \{C, A\} = 0 \]
+\end{rsbox}
+\end{theorem}
+
+%=====================================================================
+\section{The Classical Limit: Free Particles and Gravity}
+%=====================================================================
+
+We now map the discrete topology of the Mediant Tree to the continuous trajectories observed in classical mechanics.
+
+\subsection{The Free-Particle Trajectory ($\lop$-Ray)}
+
+In classical mechanics, a free particle moves in a straight line at a constant velocity. In RigbySpace, this is the macroscopic mask of the Linear Transform ($\lop$).
+
+\begin{theorem}[The $\lop$-Ray is Saturated]\label{thm:lop_ray}
+\begin{rsbox}
+The Linear Transform is defined as $\lop(n, d) = (n + d, d)$.
+For every integer $k \ge 0$, applying $\lop$ iteratively to the unit ERP yields:
+\[ \lop^k(1, 1) = (k + 1, 1) \]
+
+The cross-determinant between consecutive states on this ray is:
+\[ \Dcross(\lop^k(1, 1),\; \lop^{k+1}(1, 1)) = \Dcross((k+1, 1),\; (k+2, 1)) \]
+\[ = (k+2)(1) - (k+1)(1) = 1 \]
+
+Consecutive states on the $\lop$-ray form a saturated chain ($W=1$). The state moves along a constant-denominator geodesic in the Mediant Tree. The rational value $v_k = (k+1)/1$ generates a perfectly linear progression. The continuous straight-line trajectory of classical mechanics is the macroscopic mask of this discrete $\lop$-ray propagation.
+\end{rsbox}
+\end{theorem}
+
+\subsection{Gravitational Coupling as Geodesic Length}
+
+In General Relativity, gravity is the curvature of the manifold. In RigbySpace, gravity is the structural tension required to resolve the metric bases of two interacting states across the Mediant Tree.
+
+\begin{theorem}[Gravitational Tension and Geodesic Length]\label{thm:grav_geodesic}
+\begin{rsbox}
+Let State A and State B be two massive ERPs separated in the lattice.
+The gravitational coupling $T(A,B)$ between them is not a force transmitted across empty space. It is inversely proportional to the Mediant Geodesic Length $\ell(\gamma(A,B))$ required to connect their metric bases in the Mediant Tree.
+
+\[ T(A,B) \propto \frac{\Delta_{\text{flux}}}{\ell(\gamma(A,B))} \]
+
+As the states are driven further apart by the Aggregate Transform ($\aop$) during the Memory phase, their denominators grow multiplicatively (the Lucas sequence). The number of mediant edges $\ell$ required to connect them grows exponentially. The continuous $1/r^2$ drop-off of the classical gravitational potential is the macroscopic mask of this exponential growth in discrete geodesic length.
+\end{rsbox}
+\end{theorem}
+
+%=====================================================================
+\section{Saturation and Barycentric Truncation}
+%=====================================================================
+
+When a bracket reaches a width of 1, it is saturated. It cannot be refined further by the Mediant Sum without increasing the denominators. This is the discrete boundary of physical resolution.
+
+\begin{theorem}[Parity-Stable Selection Law]\label{thm:parity_selection}
+\begin{rsbox}
+Let $[L, U]$ be a saturated bracket ($W=1$). The ontology does not replace the pair with a continuous real-number limit. The physically admissible attractor is the ordered alternation between the adjacent ERPs $L$ and $U$.
+
+At the cycle boundary $\Omega$, the macroscopic universe observes a single representative state $S_{\text{rep}}$, selected by the parity of the structural rank of the $\koppa$ ledger:
+\[
+S_{\text{rep}} = 
+\begin{cases} 
+L & \text{if } \rho(\koppa_{\text{ledger}}) \equiv 0 \pmod 2 \\
+U & \text{if } \rho(\koppa_{\text{ledger}}) \equiv 1 \pmod 2 
+\end{cases}
+\]
+
+If two consecutive evaluations at $\Omega$ are made with ledger values whose structural ranks have the same parity, the selected representative is the same. If the parity flips, the representative swaps from one endpoint of the bracket to the other.
+
+This is the exact RS replacement for continuum convergence and probabilistic wave-function collapse. The universe deterministically oscillates between the saturated bounds, driven by the parity of its accumulated structural friction.
+\end{rsbox}
+\end{theorem}
+
+\end{document}
